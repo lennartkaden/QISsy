@@ -1,7 +1,9 @@
+from typing import Dict
+
 import bs4
 import requests
 from bs4 import NavigableString
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -33,8 +35,7 @@ class UserSignInDetails(BaseModel):
 
 @app.post("/signin", response_model=UserSignInDetails,
           responses={200: {"description": "Successfully signed in", "model": UserSignInDetails},
-                     401: {"description": "Invalid credentials"},
-                     500: {"description": "Internal server error"},
+                     401: {"description": "Invalid credentials"}, 500: {"description": "Internal server error"},
                      503: {"description": "Service temporarily unavailable"}})
 async def signin(user_credentials: UserCredentials):
     """
@@ -108,27 +109,25 @@ class SessionStatus(BaseModel):
     message: str
 
 
-@app.post("/check_session", response_model=SessionStatus,
-          responses={200: {"description": "Session status returned", "model": SessionStatus},
-                     400: {"description": "Bad request, possibly due to missing or invalid parameters"},
-                     503: {"description": "Service temporarily unavailable"}})
-async def check_session_validity(input_data: SessionCheckInput):  # TDOO: Response allways true
+@app.get("/check_session", response_model=SessionStatus,
+         responses={200: {"description": "Session status returned", "model": SessionStatus},
+                    400: {"description": "Bad request, possibly due to missing or invalid parameters"},
+                    503: {"description": "Service temporarily unavailable"}})
+async def check_session_validity(session_cookie: str = Header(...)):  # Der Session-Key wird vom Header genommen
     """
     Checks if a session cookie is still valid.
-    :param input_data: The data containing the JSESSIONID cookie.
+    :param session_cookie: The data containing the JSESSIONID cookie.
     :return: A model indicating if the session is valid or not.
     """
     # Creating a new session to use the provided session cookie
     qis_session = requests.Session()
-    qis_session.cookies.set("JSESSIONID", input_data.session_cookie)
+    qis_session.cookies.set("JSESSIONID", session_cookie)
 
     try:
         # Requesting the login page
         response = qis_session.get(f"{SERVICE_BASE_URL}?state=user&type=0&application=lsf", timeout=10)
     except requests.RequestException as e:
-        raise HTTPException(
-            status_code=503, detail="Service temporarily unavailable"
-        ) from e
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     # If the 'Passwort' field is present, the session is invalid. Otherwise, it's still valid.
     if "Passwort" in response.text:
