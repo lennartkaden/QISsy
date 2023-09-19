@@ -1,23 +1,31 @@
-from typing import Dict
+from enum import Enum
+from typing import Dict, List, Optional
 from urllib.parse import urlparse, parse_qs
 
 import bs4
 import requests
 from bs4 import NavigableString
 from fastapi import FastAPI, HTTPException, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
 BASE_URL = "https://qis.verwaltung.uni-hannover.de"
 SERVICE_BASE_URL = f"{BASE_URL}/qisserver/servlet/de.his.servlet.RequestDispatcherServlet"
 SIGNIN_URL = f"{SERVICE_BASE_URL}?state=user&type=1&category=auth.login&startpage=portal.vm&breadCrumbSource=portal"
-STUDY_POS_URL = f"{SERVICE_BASE_URL}?state=change&type=1&moduleParameter=studyPOSMenu&nextdir=change&next=menu.vm&subdir=applications&xml=menu&purge=y&navigationPosition=functions%2CstudyPOSMenu&breadcrumb=studyPOSMenu&topitem=functions"
+STUDY_POS_URL = (f"{SERVICE_BASE_URL}?state=change&type=1&moduleParameter=studyPOSMenu&nextdir=change&next=menu.vm"
+                 f"&subdir=applications&xml=menu&purge=y&navigationPosition=functions%2CstudyPOSMenu&breadcrumb"
+                 f"=studyPOSMenu&topitem=functions")
 DEFAULT_REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"}
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/116.0.0.0 Safari/537.36"}
 
 # Constants for magic numbers/strings
 USER_DISPLAY_NAME_INDEX = 8
+
+
+class ErrorResponse(BaseModel):
+    detail: str
 
 
 class UserCredentials(BaseModel):
@@ -54,8 +62,9 @@ def parse_asi_parameter(response_text: str) -> str or None:
 
 @app.post("/signin", response_model=UserSignInDetails,
           responses={200: {"description": "Successfully signed in", "model": UserSignInDetails},
-                     401: {"description": "Invalid credentials"}, 500: {"description": "Internal server error"},
-                     503: {"description": "Service temporarily unavailable"}})
+                     401: {"description": "Invalid credentials", "model": ErrorResponse},
+                     500: {"description": "Internal server error", "model": ErrorResponse},
+                     503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
 async def signin(user_credentials: UserCredentials):
     """
     Reads the user's credentials, forwards them to the qis server und returns the session cookie for the user.
@@ -140,8 +149,9 @@ class SessionStatus(BaseModel):
 
 @app.get("/check_session", response_model=SessionStatus,
          responses={200: {"description": "Session status returned", "model": SessionStatus},
-                    400: {"description": "Bad request, possibly due to missing or invalid parameters"},
-                    503: {"description": "Service temporarily unavailable"}})
+                    400: {"description": "Bad request, possibly due to missing or invalid parameters",
+                          "model": ErrorResponse},
+                    503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
 async def check_session_validity(session_cookie: str = Header(...)):  # The session cookie is passed as a header.
     """
     Checks if a session cookie is still valid.
@@ -183,10 +193,14 @@ def _session_is_valid(session_cookie: str) -> bool:
 
 class ScorecardIDs(BaseModel):
     """
-    Model to represent the scorecard IDs.
+    Modell zur Darstellung der Scorecard-IDs.
     """
-    scorecard_ids: Dict[str, str]
-    message: str
+    scorecard_ids: Dict[str, str] = Field(..., example={
+        "Informatik  (PO-Version 2017)": "auswahlBaum|abschluss:abschl=82|studiengang:stg=079,pversion=2017,kzfa=H",
+        "Informatik  (PO-Version 2004)": "auswahlBaum|abschluss:abschl=82|studiengang:stg=079,pversion=2004,kzfa=H"},
+                                          description="A dictionary containing the scorecard IDs")
+    message: str = Field(..., example="Successfully retrieved scorecard IDs",
+                         description="A message indicating if the request was successful or not")
 
 
 def parse_scorecard_ids(html_text: str) -> Dict[str, str]:
@@ -217,15 +231,16 @@ def parse_scorecard_ids(html_text: str) -> Dict[str, str]:
 
 @app.get("/scorecard_ids", response_model=ScorecardIDs,
          responses={200: {"description": "Scorecard IDs returned", "model": ScorecardIDs},
-                    400: {"description": "Bad request, possibly due to missing or invalid parameters"},
-                    401: {"description": "Invalid credentials"}, 500: {"description": "Internal server error"},
-                    503: {"description": "Service temporarily unavailable"}})
-async def get_scorecard_ids(session_cookie: str = Header(...), asi: str = Header(...)):
+                    400: {"description": "Bad request, possibly due to missing or invalid parameters",
+                          "model": ErrorResponse}, 401: {"description": "Invalid credentials", "model": ErrorResponse},
+                    500: {"description": "Internal server error", "model": ErrorResponse},
+                    503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+async def get_scorecard_ids(session_cookie: str = Header(..., description="The data containing the JSESSIONID cookie.",
+                                                         example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
+                            asi: str = Header(..., description="The ASI parameter.",
+                                              example="tnEJEgEd8dAPRC.kaurx")) -> ScorecardIDs:
     """
     Gets the scorecard IDs for the user.
-    :param asi: The ASI parameter.
-    :param session_cookie: The data containing the JSESSIONID cookie.
-    :return: A model containing the scorecard IDs.
     """
     # Check if the session is still valid
     try:
@@ -249,10 +264,6 @@ async def get_scorecard_ids(session_cookie: str = Header(...), asi: str = Header
     except requests.RequestException as e:
         raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
-    # Check if the user's credentials are valid by checking if the password input field is still present.
-    if "Passwort" in response.text:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
     # Check if the response's HTTP status code is 200.
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Unexpected response from QIS server")
@@ -266,3 +277,234 @@ async def get_scorecard_ids(session_cookie: str = Header(...), asi: str = Header
 
     # Return the scorecard IDs.
     return {"scorecard_ids": scorecard_ids, "message": "Successfully retrieved scorecard IDs"}
+
+
+class ScoreType(str, Enum):
+    """
+    Enum to represent the type of score.
+    """
+    PL = "PL"
+    SL = "SL"
+
+
+class ScoreState(str, Enum):
+    """
+    Enum to represent the state of a score.
+    """
+    PASSED = "bestanden"
+    FAILED = "nicht bestanden"
+    REGISTERED = "angemeldet"
+
+
+class IndividualScore(BaseModel):
+    """
+    Model to represent a score.
+    """
+    number: int = Field(..., example=110, description="The number of the score")
+    name: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
+    score_type: ScoreType = Field(..., example="Prüfungsleitung", description="The type of the score")
+    semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
+    grade: Optional[float] = Field(None, example=1.3, description="The grade of the score")
+    state: ScoreState = Field(..., example="bestanden", description="The state of the score")
+    date: str = Field(..., example="01.02.2018", description="The date of the score")
+    try_number: Optional[int] = Field(None, example=1, description="The number of tries")
+
+
+class BaseScore(BaseModel):
+    """
+    Model to represent a score.
+    """
+    number: int = Field(..., example=100, description="The number of the score")
+    name: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
+    semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
+    state: ScoreState = Field(..., example="bestanden", description="The state of the score")
+    score_credits: int = Field(..., example=10, description="The credits of the score")
+    date: str = Field(..., example="01.02.2018", description="The date of the score")
+    individual_scores: List[IndividualScore] = Field(..., example=[{
+        "number": 110,
+        "name": "Grundlagen der Informatik",
+        "score_type": "Prüfungsleitung",
+        "semester": "WS 2017/18",
+        "grade": 1.3,
+        "state": "bestanden",
+        "date": "01.02.2018",
+        "try_number": 1
+    }, {
+        "number": 1109,
+        "name": "Grundlagen der Informatik",
+        "score_type": "Studienleistung",
+        "semester": "WS 2017/18",
+        "grade": None,
+        "state": "bestanden",
+        "date": "01.02.2018",
+        "try_number": 1
+    }], description="A list of individual scores")
+
+
+class Scorecard(BaseModel):
+    """
+    Model to represent a scorecard.
+    """
+    scores: list[BaseScore]
+    message: str = Field(..., example="Successfully retrieved scorecard",
+                         description="A message indicating if the request was successful or not")
+
+
+def parse_base_score_row(cells) -> BaseScore:
+    """
+    Parses the base score from the HTML response.
+    :param cells: Cells of the row.
+    :return: Base score.
+    """
+    number: int = int(cells[0].text.strip())
+    name: str = cells[1].text.strip()
+    semester: str = cells[3].text.strip()
+    state: ScoreState = ScoreState(cells[5].text.strip())
+    score_credits: int = int(cells[6].text.strip())
+    date: str = cells[7].text.strip()
+
+    return BaseScore(
+        number=number,
+        name=name,
+        semester=semester,
+        state=state,
+        score_credits=score_credits,
+        date=date,
+        individual_scores=[],
+    )
+
+
+def parse_individual_score_row(cells) -> IndividualScore:
+    """
+    Parses the individual score from the HTML response.
+    :param cells: Cells of the row.
+    :return: Individual score.
+    """
+
+    number: int = int(cells[0].text.strip())
+    name: str = cells[1].text.strip()
+    score_type: ScoreType = ScoreType(cells[2].text.strip())
+    semester: str = cells[3].text.strip()
+
+    if cells[4].text.strip():
+        grade: Optional[float] = float(cells[4].text.strip().replace(",", "."))
+    else:
+        grade: Optional[float] = None
+
+    state: ScoreState = ScoreState(cells[5].text.strip())
+    date: str = cells[7].text.strip()
+
+    if cells[8].text.strip():
+        try_number: Optional[int] = int(cells[8].text.strip())
+    else:
+        try_number: Optional[int] = None
+
+    return IndividualScore(
+        number=number,
+        name=name,
+        score_type=score_type,
+        semester=semester,
+        grade=grade,
+        state=state,
+        date=date,
+        try_number=try_number,
+    )
+
+
+def parse_scorecard(html_text: str) -> List[BaseScore] or None:
+    """
+    Parses the scorecard from the HTML response.
+    :param html_text: HTML response from the QIS server.
+    :return: Scorecard.
+    """
+    soup = bs4.BeautifulSoup(html_text, "html.parser")
+
+    # find the table with the scores
+    table = soup.findAll("table")[1]
+
+    # get the rows of the table
+    rows = table.findAll("tr")
+
+    # remove the first row, because it contains the table headers
+    rows.pop(0)
+
+    # create a list to store the scores
+    scores = []
+
+    latest_base_score = None
+
+    # iterate over the rows
+    for row in rows:
+        # get the cells of the row
+        cells = row.findAll("td")
+
+        # check if the row has the expected structure
+        if len(cells) != 11:
+            continue
+
+        if not cells[6].text.strip():
+            continue
+
+        # get the score's type
+        if not cells[2].text.strip():
+            latest_base_score = parse_base_score_row(cells)
+            scores.append(latest_base_score)
+        elif latest_base_score is not None:
+            if len(row.contents) < 4:
+                continue
+            latest_base_score.individual_scores.append(parse_individual_score_row(cells))
+
+    return scores
+
+@app.get("/scorecard", response_model=Scorecard,
+         responses={200: {"description": "Scorecard returned", "model": Scorecard},
+                    400: {"description": "Bad request, possibly due to missing or invalid parameters",
+                          "model": ErrorResponse},
+                    401: {"description": "Invalid credentials", "model": ErrorResponse},
+                    500: {"description": "Internal server error", "model": ErrorResponse},
+                    503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+async def get_scorecard(scorecard_id: str,
+                        session_cookie: str = Header(...,
+                                                     description="The data containing the JSESSIONID cookie.",
+                                                     example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
+                        asi: str = Header(...,
+                                          description="The ASI parameter.",
+                                          example="tnEJEgEd8dAPRC.kaurx")
+                        ) -> ScorecardIDs:
+    """
+    Gets the scorecard for the user.
+    """
+    # Check if the session is still valid
+    try:
+        session_is_valid = _session_is_valid(session_cookie)
+        if not session_is_valid:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+
+    # Creating a new session to use the provided session cookie
+    qis_session = requests.Session()
+    qis_session.cookies.set("JSESSIONID", session_cookie)
+
+    url = (f"{SERVICE_BASE_URL}?state=notenspiegelStudent&menu_open=n&next=list.vm&nextdir=qispos/notenspiegel/student"
+           f"&createInfos=Y&struct=auswahlBaum&nodeID={scorecard_id}&expand=0&asi={asi}")
+
+    try:
+        # Requesting the scorecard page
+        response = qis_session.get(url, timeout=10)
+    except requests.RequestException as e:
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+
+    # Check if the response's HTTP status code is 200.
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Unexpected response from QIS server")
+
+    # Parse the scorecard from the HTML response.
+    scorecard = parse_scorecard(response.text)
+
+    # Check if the scorecard is valid.
+    if scorecard is None:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    # Return the scorecard.
+    return {"scores": scorecard, "message": "Successfully retrieved scorecard"}
