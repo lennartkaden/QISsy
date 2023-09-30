@@ -1,0 +1,38 @@
+name: Deploy FastAPI to Remote Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Build Docker Image
+        run: docker build -t my_fastapi_app .
+
+      - name: Copy Docker Image to Remote Server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "./my_fastapi_app"
+          target: "/remote/path/to/store"
+
+      - name: Deploy to Remote Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker stop my_fastapi_app || true
+            docker rm my_fastapi_app || true
+            docker load < /remote/path/to/store/my_fastapi_app
+            docker run -d --name my_fastapi_app my_fastapi_app
