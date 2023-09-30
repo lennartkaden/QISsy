@@ -1,3 +1,7 @@
+"""
+Main file for QISsy FastAPI Application
+"""
+import contextlib
 from enum import Enum
 from typing import Dict, List, Optional
 from urllib.parse import urlparse, parse_qs
@@ -219,7 +223,7 @@ def parse_scorecard_ids(html_text: str) -> Dict[str, str]:
         # extract the parameters from the url
         query_params = parse_qs(parsed_url.query)
 
-        # Get the parent node of the a tag
+        # Get the parent node of the 'a' tag
         parent_node = a_tag.parent
 
         # check if the "nodeID" parameter is present
@@ -229,6 +233,7 @@ def parse_scorecard_ids(html_text: str) -> Dict[str, str]:
     return scorecard_ids
 
 
+# noinspection DuplicatedCode
 @app.get("/scorecard_ids", response_model=ScorecardIDs,
          responses={200: {"description": "Scorecard IDs returned", "model": ScorecardIDs},
                     400: {"description": "Bad request, possibly due to missing or invalid parameters",
@@ -243,12 +248,7 @@ async def get_scorecard_ids(session_cookie: str = Header(..., description="The d
     Gets the scorecard IDs for the user.
     """
     # Check if the session is still valid
-    try:
-        session_is_valid = _session_is_valid(session_cookie)
-        if not session_is_valid:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+    await validate_session_or_raise(session_cookie)
 
     # Creating a new session to use the provided session cookie
     qis_session = requests.Session()
@@ -276,7 +276,10 @@ async def get_scorecard_ids(session_cookie: str = Header(..., description="The d
         raise HTTPException(status_code=500, detail="Internal server error")
 
     # Return the scorecard IDs.
-    return {"scorecard_ids": scorecard_ids, "message": "Successfully retrieved scorecard IDs"}
+    return ScorecardIDs(
+        scorecard_ids=scorecard_ids,
+        message="Successfully retrieved scorecard IDs"
+    )
 
 
 class ScoreType(str, Enum):
@@ -287,7 +290,7 @@ class ScoreType(str, Enum):
     SL = "SL"
 
 
-class ScoreState(str, Enum):
+class ScoreStatus(str, Enum):
     """
     Enum to represent the state of a score.
     """
@@ -300,44 +303,52 @@ class IndividualScore(BaseModel):
     """
     Model to represent a score.
     """
-    number: int = Field(..., example=110, description="The number of the score")
-    name: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
-    score_type: ScoreType = Field(..., example="Prüfungsleitung", description="The type of the score")
+    id: int = Field(..., example=110, description="The number of the score")
+    title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
+    type: ScoreType = Field(..., example="Prüfungsleitung", description="The type of the score")
     semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
     grade: Optional[float] = Field(None, example=1.3, description="The grade of the score")
-    state: ScoreState = Field(..., example="bestanden", description="The state of the score")
-    date: str = Field(..., example="01.02.2018", description="The date of the score")
-    try_number: Optional[int] = Field(None, example=1, description="The number of tries")
+    status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
+    issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
+    attempt: Optional[int] = Field(None, example=1, description="The number of tries")
+    specific_scorecard_id: Optional[str] = Field(None, example="auswahlBaum|abschluss:abschl=82|studiengang:"
+                                                               "stg=001,pversion=2017,kzfa=H|kontoOnTop:labnrzu=0000001"
+                                                               "|konto:labnrzu=0000001|konto:labnrzu=0000001|pruefung"
+                                                               ":labnr=0000001",
+                                                 description="The ID of the specific scorecard")
 
 
 class BaseScore(BaseModel):
     """
     Model to represent a score.
     """
-    number: int = Field(..., example=100, description="The number of the score")
-    name: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
+    id: int = Field(..., example=100, description="The number of the score")
+    title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
     semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
-    state: ScoreState = Field(..., example="bestanden", description="The state of the score")
-    score_credits: int = Field(..., example=10, description="The credits of the score")
-    date: str = Field(..., example="01.02.2018", description="The date of the score")
+    status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
+    credits: int = Field(..., example=10, description="The credits of the score")
+    issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
     individual_scores: List[IndividualScore] = Field(..., example=[{
-        "number": 110,
-        "name": "Grundlagen der Informatik",
-        "score_type": "Prüfungsleitung",
+        "id": 110,
+        "title": "Grundlagen der Informatik",
+        "type": "PL",
         "semester": "WS 2017/18",
         "grade": 1.3,
-        "state": "bestanden",
-        "date": "01.02.2018",
-        "try_number": 1
+        "status": "bestanden",
+        "issued_on": "01.02.2018",
+        "attempt": 1,
+        "specific_scorecard_id": "auswahlBaum|abschluss:abschl=82|studiengang:stg=001,pversion=2017,kzfa=H|kontoOnTop:"
+                                 "labnrzu=0000001|konto:labnrzu=0000001|konto:labnrzu=0000001|pruefung:labnr=0000001"
     }, {
-        "number": 1109,
-        "name": "Grundlagen der Informatik",
-        "score_type": "Studienleistung",
+        "id": 1109,
+        "title": "Grundlagen der Informatik",
+        "type": "SL",
         "semester": "WS 2017/18",
         "grade": None,
-        "state": "bestanden",
-        "date": "01.02.2018",
-        "try_number": 1
+        "status": "bestanden",
+        "issued_on": "01.02.2018",
+        "attempt": 1,
+        "specific_scorecard_id": None
     }], description="A list of individual scores")
 
 
@@ -356,20 +367,20 @@ def parse_base_score_row(cells) -> BaseScore:
     :param cells: Cells of the row.
     :return: Base score.
     """
-    number: int = int(cells[0].text.strip())
-    name: str = cells[1].text.strip()
+    score_id: int = int(cells[0].text.strip())
+    title: str = cells[1].text.strip()
     semester: str = cells[3].text.strip()
-    state: ScoreState = ScoreState(cells[5].text.strip())
+    status: ScoreStatus = ScoreStatus(cells[5].text.strip())
     score_credits: int = int(cells[6].text.strip())
-    date: str = cells[7].text.strip()
+    issued_on: str = cells[7].text.strip()
 
     return BaseScore(
-        number=number,
-        name=name,
+        id=score_id,
+        title=title,
         semester=semester,
-        state=state,
-        score_credits=score_credits,
-        date=date,
+        status=status,
+        credits=score_credits,
+        issued_on=issued_on,
         individual_scores=[],
     )
 
@@ -381,33 +392,48 @@ def parse_individual_score_row(cells) -> IndividualScore:
     :return: Individual score.
     """
 
-    number: int = int(cells[0].text.strip())
-    name: str = cells[1].text.strip()
+    score_id: int = int(cells[0].text.strip())
+    title: str = cells[1].text.strip()
     score_type: ScoreType = ScoreType(cells[2].text.strip())
     semester: str = cells[3].text.strip()
 
+    specific_scorecard_id: Optional[str] = None
+
     if cells[4].text.strip():
         grade: Optional[float] = float(cells[4].text.strip().replace(",", "."))
+
+        with contextlib.suppress(Exception):
+            specific_scorecard_url = cells[4].contents[1].attrs['href']
+
+            # Split the url into its components
+            parsed_url = urlparse(specific_scorecard_url)
+
+            # extract the parameters from the url
+            query_params = parse_qs(parsed_url.query)
+
+            specific_scorecard_id: Optional[str] = query_params["nodeID"][0]
+
     else:
         grade: Optional[float] = None
 
-    state: ScoreState = ScoreState(cells[5].text.strip())
-    date: str = cells[7].text.strip()
+    status: ScoreStatus = ScoreStatus(cells[5].text.strip())
+    issued_on: str = cells[7].text.strip()
 
     if cells[8].text.strip():
-        try_number: Optional[int] = int(cells[8].text.strip())
+        attempt: Optional[int] = int(cells[8].text.strip())
     else:
-        try_number: Optional[int] = None
+        attempt: Optional[int] = None
 
     return IndividualScore(
-        number=number,
-        name=name,
-        score_type=score_type,
+        id=score_id,
+        title=title,
+        type=score_type,
         semester=semester,
         grade=grade,
-        state=state,
-        date=date,
-        try_number=try_number,
+        status=status,
+        issued_on=issued_on,
+        attempt=attempt,
+        specific_scorecard_id=specific_scorecard_id
     )
 
 
@@ -456,6 +482,8 @@ def parse_scorecard(html_text: str) -> List[BaseScore] or None:
 
     return scores
 
+
+# noinspection DuplicatedCode
 @app.get("/scorecard", response_model=Scorecard,
          responses={200: {"description": "Scorecard returned", "model": Scorecard},
                     400: {"description": "Bad request, possibly due to missing or invalid parameters",
@@ -470,17 +498,12 @@ async def get_scorecard(scorecard_id: str,
                         asi: str = Header(...,
                                           description="The ASI parameter.",
                                           example="tnEJEgEd8dAPRC.kaurx")
-                        ) -> ScorecardIDs:
+                        ) -> Scorecard:
     """
     Gets the scorecard for the user.
     """
     # Check if the session is still valid
-    try:
-        session_is_valid = _session_is_valid(session_cookie)
-        if not session_is_valid:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-    except requests.RequestException as e:
-        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+    await validate_session_or_raise(session_cookie)
 
     # Creating a new session to use the provided session cookie
     qis_session = requests.Session()
@@ -507,4 +530,23 @@ async def get_scorecard(scorecard_id: str,
         raise HTTPException(status_code=500, detail="Internal server error")
 
     # Return the scorecard.
-    return {"scores": scorecard, "message": "Successfully retrieved scorecard"}
+    return Scorecard(
+        scores=scorecard,
+        message="Successfully retrieved scorecard"
+    )
+
+
+async def validate_session_or_raise(session_cookie):
+    """
+    Checks if the session cookie is still valid.
+    Raises an exception if it isn't
+    :param session_cookie: the session cookie to validate
+    :raises HTTPException with status code 401 if the cookie is invalid
+    :raises HTTPException with status code 503 if another error occurred
+    """
+    try:
+        session_is_valid = _session_is_valid(session_cookie)
+        if not session_is_valid:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
