@@ -37,5 +37,5 @@ jobs:
           script: |
             docker stop my_fastapi_app || true
             docker rm my_fastapi_app || true
-            docker load < /remote/path/to/store/my_fastapi_app.tar
+            docker load < /root/QISsy/my_fastapi_app.tar
             docker run -d --name my_fastapi_app -p 8000:8000 my_fastapi_app
