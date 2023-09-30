@@ -1,6 +1,7 @@
 import requests
 from fastapi import APIRouter
 from fastapi import HTTPException, Header
+from fastapi_versioning import version
 
 from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard
 from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
@@ -23,6 +24,7 @@ DEFAULT_REQUEST_HEADERS = {
                         401: {"description": "Invalid credentials", "model": ErrorResponse},
                         500: {"description": "Internal server error", "model": ErrorResponse},
                         503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+@version(1, 0)
 async def signin(user_credentials: UserCredentials):
     """
     Reads the user's credentials, forwards them to the qis server und returns the session cookie for the user.
@@ -87,6 +89,7 @@ async def signin(user_credentials: UserCredentials):
                        400: {"description": "Bad request, possibly due to missing or invalid parameters",
                              "model": ErrorResponse},
                        503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+@version(1, 0)
 async def check_session_validity(session_cookie: str = Header(...)):  # The session cookie is passed as a header.
     """
     Checks if a session cookie is still valid.
@@ -114,6 +117,7 @@ async def check_session_validity(session_cookie: str = Header(...)):  # The sess
                        401: {"description": "Invalid credentials", "model": ErrorResponse},
                        500: {"description": "Internal server error", "model": ErrorResponse},
                        503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+@version(1, 0)
 async def get_scorecard_ids(session_cookie: str = Header(..., description="The data containing the JSESSIONID cookie.",
                                                          example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
                             asi: str = Header(..., description="The ASI parameter.",
@@ -161,6 +165,7 @@ async def get_scorecard_ids(session_cookie: str = Header(..., description="The d
                        401: {"description": "Invalid credentials", "model": ErrorResponse},
                        500: {"description": "Internal server error", "model": ErrorResponse},
                        503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
+@version(1, 0)
 async def get_scorecard(scorecard_id: str,
                         session_cookie: str = Header(..., description="The data containing the JSESSIONID cookie.",
                                                      example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
