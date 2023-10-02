@@ -235,4 +235,4 @@ def get_grade_point_average(scorecard: List[BaseScore]) -> float or None:
     else:
         return None
 
-    return great_point_average
+    return round(great_point_average, 2)
