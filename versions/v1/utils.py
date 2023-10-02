@@ -211,3 +211,28 @@ async def validate_session_or_raise(session_cookie):
             raise HTTPException(status_code=401, detail="Invalid credentials")
     except requests.RequestException as e:
         raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+
+
+def get_grade_point_average(scorecard: List[BaseScore]) -> float or None:
+    """
+    parse the grades from the scorecard by iterating over the individual scores,
+    multiplying the grade with the credits from the base score and summing them up
+    :param scorecard: the scorecard to parse
+    :return: the grade point average
+    """
+    great_point_average: float = 0.0
+    amount_of_credits: int = 0
+
+    for score in scorecard:
+        for individual_score in score.individual_scores:
+            if individual_score.grade is not None:
+                great_point_average += individual_score.grade * score.credits
+                amount_of_credits += score.credits
+
+    # divide the sum of the grades by the amount of credits
+    if amount_of_credits > 0:
+        great_point_average /= amount_of_credits
+    else:
+        return None
+
+    return great_point_average

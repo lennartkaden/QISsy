@@ -5,7 +5,7 @@ from fastapi_versioning import version
 
 from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard
 from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
-    parse_scorecard_ids, parse_scorecard, validate_session_or_raise
+    parse_scorecard_ids, parse_scorecard, validate_session_or_raise, get_grade_point_average
 
 router = APIRouter()
 
@@ -201,5 +201,8 @@ async def get_scorecard(scorecard_id: str,
     if scorecard is None:
         raise HTTPException(status_code=500, detail="Internal server error")
 
+    grade_point_average = get_grade_point_average(scorecard)
+
     # Return the scorecard.
-    return Scorecard(scores=scorecard, message="Successfully retrieved scorecard")
+    return Scorecard(scores=scorecard, grade_point_average=grade_point_average,
+                     message="Successfully retrieved scorecard")

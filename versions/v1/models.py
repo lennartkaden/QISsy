@@ -121,5 +121,6 @@ class Scorecard(BaseModel):
     Model to represent a scorecard.
     """
     scores: list[BaseScore]
+    grade_point_average: Optional[float] = Field(None, example=1.3, description="The grade point average")
     message: str = Field(..., example="Successfully retrieved scorecard",
                          description="A message indicating if the request was successful or not")
