@@ -100,12 +100,13 @@ def parse_base_score_row(cells) -> BaseScore:
     score_id: int = int(cells[0].text.strip())
     title: str = cells[1].text.strip()
     semester: str = cells[3].text.strip()
+    grade: Optional[float] = None
     status: ScoreStatus = ScoreStatus(cells[5].text.strip())
     score_credits: int = int(cells[6].text.strip())
     issued_on: str = cells[7].text.strip()
 
-    return BaseScore(id=score_id, title=title, semester=semester, status=status, credits=score_credits,
-        issued_on=issued_on, individual_scores=[], )
+    return BaseScore(id=score_id, title=title, semester=semester, grade=grade, status=status, credits=score_credits,
+                     issued_on=issued_on, individual_scores=[])
 
 
 def parse_individual_score_row(cells) -> IndividualScore:
@@ -193,6 +194,17 @@ def parse_scorecard(html_text: str) -> List[BaseScore] or None:
             if len(row.contents) < 4:
                 continue
             latest_base_score.individual_scores.append(parse_individual_score_row(cells))
+
+    for score in scores:
+        # if exactly one individual score has a grade, set the grade of the base score to that grade
+        amount_of_grades = 0
+        for individual_score in score.individual_scores:
+            if individual_score.grade is not None:
+                amount_of_grades += 1
+                score.grade = individual_score.grade
+
+        if amount_of_grades != 1:
+            score.grade = None
 
     return scores
 

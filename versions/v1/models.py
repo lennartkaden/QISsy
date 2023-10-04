@@ -89,6 +89,9 @@ class BaseScore(BaseModel):
     id: int = Field(..., example=100, description="The number of the score")
     title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
     semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
+    grade: Optional[float] = Field(None, example=1.3, description="The grade of the score if a individual score"
+                                                                  " contains a grade. If multiple individual scores are"
+                                                                  " present, this field is None.")
     status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
     credits: int = Field(..., example=10, description="The credits of the score")
     issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
