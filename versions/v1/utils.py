@@ -1,3 +1,50 @@
+"""
+This Python script defines various helper functions for the parent API router to interact with a QIS
+server and parse its responses.
+
+Key functionalities include:
+
+- **ASI Parameter Parsing:** The parse_asi_parameter function extracts the ASI parameter from the HTML response.
+
+- **Parse User Display Name:** This function extracts the user's display name from the HTML response.
+
+- **Session Validity:** This function checks if the current user session is still valid on the QIS server.
+
+- **Parse Scorecard IDs:** This function extracts the scorecard IDs from the HTML response from the QIS server.
+
+- **Parse Base Score and Individual Score Rows:** These functions parse the details of the grades contained in a
+  scorecard from the HTML response of a scorecard page and format them into the structured model
+  (BaseScore or IndividualScore).
+
+- **Parse Scorecard:** This function extracts an entire scorecard from an HTML response from the QIS server.
+  It uses parse_base_score_row and parse_individual_score_row functions to parse the scorecard information.
+
+- **Session Validation:** This function checks if the incoming session cookie is still valid on the QIS system. This is
+  used before making any requests that require an authenticated session.
+
+- **Grade Point Average Calculation:** This function parses the grades from the scorecard and calculates the grade
+  point average.
+
+Most functions in this script operate by sending HTTP requests to the QIS server or parsing the HTML responses from the
+server using BeautifulSoup. Error handling is implemented to handle potential exceptions, providing meaningful
+responses to the user.
+
+**Environment:** Python 3.10 with packages: requests, beautifulsoup4, fastapi
+
+**Classes, Methods, and Functions:**
+
+- Function `parse_asi_parameter`: Parses the ASI parameter from the HTML response
+- Function `parse_user_display_name`: Parses the user's display name from the HTML response
+- Function `_session_is_valid`: Checks if the current user session is still valid
+- Function `parse_scorecard_ids`: Parses the scorecard IDs from the HTML response
+- Function `parse_base_score_row`: Parse single row of scores into BaseScore model
+- Function `parse_individual_score_row`: Parse single row of scores into IndividualScore model
+- Function `parse_scorecard`: Parses the whole scorecard from the HTML response
+- Function `validate_session_or_raise`: Validate current session or raise http exception
+- Function `get_grade_point_average`: Calculates the grade point average from a scorecard.
+"""
+
+
 import contextlib
 from typing import Dict, Optional, List
 from urllib.parse import urlparse, parse_qs
@@ -241,7 +288,7 @@ def get_grade_point_average(scorecard: List[BaseScore]) -> float or None:
                 great_point_average += individual_score.grade * score.credits
                 amount_of_credits += score.credits
 
-    # divide the sum of the grades by the amount of credits
+    # divide the sum of the grades by the number of credits
     if amount_of_credits > 0:
         great_point_average /= amount_of_credits
     else:

@@ -1,3 +1,27 @@
+"""
+This Python script defines Pydantic models that are used in the parent API to validate data, serialize and deserialize
+Python primitives to JSON, and generate OpenAPI schema.
+
+The following models are defined:
+
+- `ErrorResponse`: Represents error messages that are returned on HTTP errors.
+- `UserCredentials`: Represents the user's credentials (username and password).
+- `UserSignInDetails`: Represents the response returned when a user signs in, including a welcome message, user's
+  display name, session cookie, and an ASI parameter.
+- `SessionStatus`: Represents the current session's status, indicating its validity and a message.
+- `ScorecardIDs`: Represents a mapping of identifiers for available scorecards and a message confirming successful
+  retrieval of these identifiers.
+- `ScoreType` and `ScoreStatus`: Enum classes representing various types and statuses of student scores respectively.
+- `IndividualScore` and `BaseScore`: Represent individual scores and base scores in a student's scorecard respectively,
+  with detailed attributes such as id, title, type, semester, grade, status, issued date, number of attempts, and the
+  ID of the specific scorecard if applicable.
+- `Scorecard`: Represents a student's scorecard as a list of BaseScores and includes the overall grade point average
+  and a message confirming successful retrieval of the scorecard.
+
+Each model is represented by a class that inherits from pydantic's `BaseModel` or `str` for Enum. The schema and example
+values for the fields are defined by the `Field` function from pydantic, used in the attribute annotations. The data
+types for these fields include built-in Python data types and custom Enum classes.
+"""
 from enum import Enum
 from typing import Dict, Optional, List
 

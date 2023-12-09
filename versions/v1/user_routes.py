@@ -1,3 +1,48 @@
+"""
+This script defines an API router for a service that interacts with QIS server to perform
+several operations related to a user's educational records.
+
+Key functionalities provided by this router include:
+
+- **User Sign-in:** The user provides their login credential, which the API uses to authenticate the user on the QIS
+server and start a session. Upon successful authentication, it fetches and returns the user's display name, session
+cookie, and an additional security parameter -- all of which are necessary for subsequent API calls.
+
+- **Session validity check:** Checks if the current user session is still valid by making a request to QIS server.
+
+- **Retrieve Scorecard IDs:** Retrieves IDs of all scorecards available for the authenticated user.
+
+- **Retrieve Scorecard:** Retrieves a specific scorecard using its ID. The scorecard contains the user's grades, which
+are parsed, structured, and returned in a user-friendly format. Also calculates and returns the grade point average.
+
+In general, the helper functions defined in this file use the `requests` library to send HTTP requests to the QIS
+server. In each function, there are error handling blocks to manage the exceptions that could be raised during these
+HTTP requests, ensuring that meaningful results are returned at all times.
+
+This file is designed to handle API versioning, meaning that each function is versioned. Pydantic models are used to
+facilitate request body validation, serialization, and deserialization.
+
+Markdown code documentation and Python type hinting are used extensively throughout this file to provide clear,
+maintainable code.
+
+**Environment:** Python 3.10 with packages:  requests, fastapi, fastapi-versioning
+
+**Classes, Functions and Routes:**
+
+- Class `UserCredentials`: Pydantic model that defines the structure of the user credential data.
+- Class `UserSignInDetails`: Pydantic model that defines the structure of user sign-in details.
+- Class `ScorecardIDs`: Pydantic model that defines the structure of response for Scorecard IDs API endpoint.
+- Class `Scorecard`: Pydantic model that defines the structure of response for the Scorecard API endpoint.
+- Function `signin`: API endpoint POST /signin
+- Function `check_session_validity`: API endpoint GET /check_session
+- Function `get_scorecard_ids`: API endpoint GET /scorecard_ids
+- Function `get_scorecard`: API endpoint GET /scorecard
+- API Route prefix: Not specified in this script, to be prefixed at the application level, if required.
+
+A FastAPI `APIRouter` instance called `router` is created and used to define these endpoints. At the application level,
+the `router` can then be included in the main FastAPI application instance.
+"""
+
 import requests
 from fastapi import APIRouter
 from fastapi import HTTPException, Header
@@ -27,8 +72,38 @@ DEFAULT_REQUEST_HEADERS = {
 @version(1, 0)
 async def signin(user_credentials: UserCredentials):
     """
-    Reads the user's credentials, forwards them to the qis server und returns the session cookie for the user.
-    :return: Session cookie
+    :param user_credentials: An object containing the user's credentials, including the username and password.
+    :return: An object containing the sign-in details, including a success message, user display name, session cookie,
+     and ASI parameter.
+
+    This method is used to sign in a user with the provided credentials. It sends a POST request to the QIS server with
+    the username and password, and checks the response to validate the
+    * credentials. If the credentials are valid, it retrieves the necessary information from the response, such as the
+    session cookie and ASI parameter, and returns them along with a success
+    * message and user display name.
+
+    The method uses the following request parameters:
+
+    - `user_credentials`: An object of type `UserCredentials` that contains the user's username and password.
+
+    The method returns an object of type `UserSignInDetails` that contains the sign-in details. The `UserSignInDetails`
+    model has the following fields:
+
+    - `message`: A string that indicates the success of the sign-in process.
+    - `user_display_name`: A string that represents the user's display name.
+    - `session_cookie`: A string that contains the session cookie obtained from the QIS server.
+    - `asi`: A string that represents the ASI parameter parsed from the response.
+
+    The method handles various HTTP status codes and raises appropriate exceptions if an error occurs. These exceptions
+    include:
+
+    - `HTTPException` with status code 503: Raised when there is a network issue and the QIS service is temporarily
+       unavailable.
+    - `HTTPException` with status code 500: Raised when there is an unexpected response from the QIS server or an
+       internal server error.
+    - `HTTPException` with status code 401: Raised when the user's credentials are invalid.
+
+    Note: This method uses the `requests` library to send HTTP requests to the QIS server.
     """
     qis_session = requests.Session()
     # The "asdf" and "fdsa" keys are the names of the input fields for the username and password.
@@ -92,9 +167,11 @@ async def signin(user_credentials: UserCredentials):
 @version(1, 0)
 async def check_session_validity(session_cookie: str = Header(...)):  # The session cookie is passed as a header.
     """
-    Checks if a session cookie is still valid.
-    :param session_cookie: The data containing the JSESSIONID cookie.
-    :return: A model indicating if the session is valid or not.
+    Check session validity based on the session cookie.
+
+    :param session_cookie: The session cookie passed as a header.
+    :return: A dictionary containing the session status, indicating whether it is valid or invalid.
+
     """
     try:
         # Requesting the login page
@@ -123,7 +200,15 @@ async def get_scorecard_ids(session_cookie: str = Header(..., description="The d
                             asi: str = Header(..., description="The ASI parameter.",
                                               example="tnEJEgEd8dAPRC.kaurx")) -> ScorecardIDs:
     """
-    Gets the scorecard IDs for the user.
+    :param session_cookie: The data containing the JSESSIONID cookie. (required)
+    :param asi: The ASI parameter. (required)
+    :return: ScorecardIDs object containing the scorecard IDs and a success message.
+
+    This method is an HTTP GET request route handler that retrieves the scorecard IDs using the provided session cookie
+    and ASI parameter. It checks the validity of the session, creates
+    * a new session with the provided session cookie, and sends a request to the scorecard page with the ASI parameter.
+    It then parses the HTML response to extract the scorecard IDs. If
+    * successful, it returns a ScorecardIDs object with the scorecard IDs and a success message.
     """
     # Check if the session is still valid
     await validate_session_or_raise(session_cookie)
@@ -172,7 +257,27 @@ async def get_scorecard(scorecard_id: str,
                         asi: str = Header(..., description="The ASI parameter.",
                                           example="tnEJEgEd8dAPRC.kaurx")) -> Scorecard:
     """
-    Gets the scorecard for the user.
+    :param scorecard_id: The ID of the scorecard to retrieve.
+    :param session_cookie: The session cookie containing the JSESSIONID.
+    :param asi: The ASI parameter.
+    :return: The retrieved scorecard.
+
+    This method retrieves a scorecard from a remote server. It requires the `scorecard_id`, `session_cookie`, and `asi`
+    as parameters. The `scorecard_id` is used to identify the specific
+    * scorecard to retrieve. The `session_cookie` contains the JSESSIONID cookie required for authentication. The `asi`
+    parameter is used for additional authentication.
+
+    The method validates the session by calling the `validate_session_or_raise` method asynchronously. It then creates a
+     new session using the provided session cookie and constructs the
+    * URL to retrieve the scorecard. The request to the remote server is made using the `qis_session` object, and the
+    response is checked for errors. If there are any errors, appropriate
+    * HTTP exceptions are raised.
+
+    If the response is successful, the scorecard HTML is parsed and converted into a structured format using the
+    `parse_scorecard` method. The parsed scorecard is then checked for validity
+    *. If it is valid, the grade point average is calculated using the `get_grade_point_average` method.
+
+    Finally, the retrieved scorecard, grade point average, and a success message are returned as a `Scorecard` object.
     """
     # Check if the session is still valid
     await validate_session_or_raise(session_cookie)
