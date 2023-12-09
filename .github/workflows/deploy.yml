@@ -1,4 +1,4 @@
-name: Deploy FastAPI to Remote Server
+name: Deploy to Testserver
 
 on:
   push:
@@ -27,6 +27,15 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           source: "./my_fastapi_app.tar"
           target: "/root/QISsy"
+
+      - name: Create Config File on Remote Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo ${{ secrets.CONFIG }} > /root/QISsy/config.json
 
       - name: Deploy to Remote Server
         uses: appleboy/ssh-action@master
