@@ -4,9 +4,7 @@
 
 | :exclamation:  QISsy is still a dev preview! |
 |----------------------------------------------|
-The functionality of this API is still limited and may not work as expected. Please report any issues you encounter.
-The scraping process is very trivial and may break at any time due to changes in the QIS system or due to 
-unexpected input.
+The functionality of this API is still limited and may not work as expected. Please report any issues you encounter. The scraping process is very trivial and may break at any time due to changes in the QIS system or due to unexpected input.
 
 ## Disclaimer
 
