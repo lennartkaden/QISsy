@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy code into container
 COPY . .
 
+# copy the config content into the config.json file
+ARG CONFIG_CONTENT
+RUN echo "$CONFIG_CONTENT" > config.json
+
 # expose port 8000
 EXPOSE 8000
 
