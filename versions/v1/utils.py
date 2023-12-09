@@ -150,8 +150,13 @@ def parse_base_score_row(cells) -> BaseScore:
     title: str = cells[1].text.strip()
     semester: str = cells[3].text.strip()
     grade: Optional[float] = None
-    status: ScoreStatus = ScoreStatus(cells[5].text.strip())
-    score_credits: int = int(cells[6].text.strip())
+
+    raw_score_status: str = cells[5].text.strip()
+    if not raw_score_status:
+        raw_score_status = "angemeldet"
+
+    status: ScoreStatus = ScoreStatus(raw_score_status)
+    score_credits: int or None = int(cells[6].text.strip()) if cells[6].text.strip() else None
     issued_on: str = cells[7].text.strip()
 
     return BaseScore(id=score_id, title=title, semester=semester, grade=grade, status=status, credits=score_credits,
@@ -222,17 +227,25 @@ def parse_scorecard(html_text: str) -> List[BaseScore] or None:
     scores = []
 
     latest_base_score = None
+    skip_next_row = False
 
     # iterate over the rows
     for row in rows:
         # get the cells of the row
         cells = row.findAll("td")
 
-        # check if the row has the expected structure
-        if len(cells) != 11:
+        if skip_next_row:
+            skip_next_row = False
             continue
 
-        if not cells[6].text.strip():
+        # check if the row has the expected structure
+        if len(cells) != 11:
+            # if the row has not 11 cells, it is not a score row, but a title row. This row is followed by another row,
+            # which should be skipped
+            skip_next_row = True
+            continue
+
+        if not cells[6].text.strip() and cells[7].text.strip():
             continue
 
         # get the score's type
