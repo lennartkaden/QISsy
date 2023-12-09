@@ -54,10 +54,12 @@ import requests
 from bs4 import NavigableString
 from fastapi import HTTPException
 
+from config import get_config_value
 from .models import BaseScore, ScoreStatus, IndividualScore, ScoreType
 
-BASE_URL = "https://qis.verwaltung.uni-hannover.de"
-SERVICE_BASE_URL = f"{BASE_URL}/qisserver/servlet/de.his.servlet.RequestDispatcherServlet"
+BASE_URL = get_config_value("QIS/BASE_URL")
+SERVICE_PATH = get_config_value("QIS/SERVICE_PATH")
+SERVICE_BASE_URL = f"{BASE_URL}{SERVICE_PATH}"
 USER_DISPLAY_NAME_INDEX = 8
 
 

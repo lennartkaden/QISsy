@@ -76,6 +76,12 @@ cd QISsy
 pip install -r requirements.txt
 ```
 
+3. Copy the example config to a new file and fill in your qis server url.
+
+```sh
+cp config_example.json config.json
+```
+
 ### Running the APP
 
 To run the QISsy FastAPI app, execute:

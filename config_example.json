@@ -1,0 +1,6 @@
+{
+  "QIS": {
+    "BASE_URL": "https://qis.your.uni.com",
+    "SERVICE_PATH": "/qisserver/servlet/de.his.servlet.RequestDispatcherServlet"
+  }
+}
