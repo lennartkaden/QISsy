@@ -117,7 +117,7 @@ class BaseScore(BaseModel):
                                                                   " contains a grade. If multiple individual scores are"
                                                                   " present, this field is None.")
     status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
-    credits: int = Field(..., example=10, description="The credits of the score")
+    credits: Optional[int] = Field(None, example=10, description="The credits of the score")
     issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
     individual_scores: List[IndividualScore] = Field(..., example=[{
         "id": 110,
