@@ -2,6 +2,12 @@
 
 [![Deployment to testserver](https://github.com/lennartkaden/QISsy/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/lennartkaden/QISsy/actions/workflows/deploy.yml)
 
+| :exclamation:  QISsy is still a dev preview! |
+|----------------------------------------------|
+The functionality of this API is still limited and may not work as expected. Please report any issues you encounter.
+The scraping process is very trivial and may break at any time due to changes in the QIS system or due to 
+unexpected input.
+
 ## Disclaimer
 
 This project is not affiliated with any University or the QIS Product by the HIS eG. It is a private project that
