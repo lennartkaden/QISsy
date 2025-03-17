@@ -160,7 +160,6 @@ class RowType(str, Enum):
     CATEGORY = "category"
     MODULE = "module"
     SCORE = "score"
-    FAKE_SCORE = "fake_score"
 
 
 class TableRow(BaseModel):

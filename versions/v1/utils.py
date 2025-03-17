@@ -176,6 +176,8 @@ def parse_scores(html_text: str) -> Dict[str, List[Module]]:
 
     current_category: str = "Unknown"
     current_module: Optional[Module] = None
+    current_module_category: str = current_category
+    score_found = False
 
     for row in table_rows[1:]:
         # Check if the row is a category row
@@ -184,7 +186,10 @@ def parse_scores(html_text: str) -> Dict[str, List[Module]]:
             continue
 
         if row.row_type == RowType.MODULE:
-            # Check if the row is a module row
+            # If the previous module had no scores, remove it from the scores
+            if not score_found and current_module and current_module_category in scores:
+                scores[current_module_category].remove(current_module)
+
             current_module = Module(
                 id=_parse_int(row.id),
                 title=row.title,
@@ -196,6 +201,9 @@ def parse_scores(html_text: str) -> Dict[str, List[Module]]:
                 scores=[]
             )
 
+            current_module_category = current_category
+            score_found = False
+
             if current_category not in scores:
                 scores[current_category] = []
 
@@ -203,6 +211,7 @@ def parse_scores(html_text: str) -> Dict[str, List[Module]]:
 
         elif row.row_type == RowType.SCORE and current_module:
             # Check if the row is a score row
+            score_found = True
             individual_score = Score(
                 id=_parse_int(row.id),
                 title=row.title,
@@ -241,34 +250,36 @@ def _parse_table_rows(html_text):
     table_rows: List[TableRow] = []
     # Iterate over all rows in the table
     for row in table.contents:
-        if type(row) is NavigableString:
-            continue
-
-        cells = [cell for cell in row.contents if type(cell) not in [NavigableString, Comment]]
-        html_classes = set()
-        for cell in cells:
-            try:
-                for html_class in cell.attrs.get("class", []):
-                    html_classes.add(html_class)
-            except Exception as e:
-                print(e)
-
-        if len(cells) >= 11:
-            table_row = _read_module_row(cells)
-        elif len(cells) == 10:
-            table_row = _read_category_row(cells)
-        elif len(cells) == 1:
-            score_cells = [score_cell for score_cell in cells[0].contents if
-                           type(score_cell) not in [NavigableString, Comment]]
-            if len(score_cells) < 10:
+        try:
+            if type(row) is NavigableString:
                 continue
-            else:
-                table_row = _read_score_row(score_cells)
-        else:
-            continue
 
-        # Append the parsed row to the list
-        table_rows.append(table_row)
+            cells = [cell for cell in row.contents if type(cell) not in [NavigableString, Comment]]
+            html_classes = set()
+            for cell in cells:
+                try:
+                    for html_class in cell.attrs.get("class", []):
+                        html_classes.add(html_class)
+                except Exception as e:
+                    print(e)
+
+            if len(cells) >= 11:
+                table_row = _read_module_row(cells)
+            elif len(cells) == 10:
+                table_row = _read_category_row(cells)
+            elif len(cells) <= 2:
+                score_cells = [score_cell for score_cell in cells[0].contents if
+                               type(score_cell) not in [NavigableString, Comment]]
+                if len(score_cells) < 10:
+                    continue
+                else:
+                    table_row = _read_score_row(score_cells)
+            else:
+                continue
+            # Append the parsed row to the list
+            table_rows.append(table_row)
+        except Exception as e:
+            print(e)
     return table_rows
 
 
@@ -287,9 +298,6 @@ def _read_module_row(cells):
         free_attempt=cells[10].text.strip(),
         row_type=RowType.MODULE,
     )
-
-    if table_row.status == "" and table_row.id and table_row.semester and table_row.issued_on:
-        table_row.row_type = RowType.FAKE_SCORE
 
     return table_row
 
@@ -360,7 +368,7 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None
 
     for module in all_modules:
         for score in module.scores:
-            if score.grade is not None:
+            if score.grade is not None and module.credits is not None:
                 try:
                     great_point_average += score.grade * module.credits
                     amount_of_credits += module.credits
