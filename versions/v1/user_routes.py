@@ -42,15 +42,16 @@ maintainable code.
 A FastAPI `APIRouter` instance called `router` is created and used to define these endpoints. At the application level,
 the `router` can then be included in the main FastAPI application instance.
 """
+from typing import Dict, List
 
 import requests
 from fastapi import APIRouter
 from fastapi import HTTPException, Header
 from fastapi_versioning import version
 
-from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard
+from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard, Module
 from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
-    parse_scorecard_ids, parse_scorecard, validate_session_or_raise, get_grade_point_average
+    parse_scorecard_ids, parse_scores, validate_session_or_raise, get_grade_point_average
 
 router = APIRouter()
 
@@ -300,14 +301,14 @@ async def get_scorecard(scorecard_id: str,
         raise HTTPException(status_code=500, detail="Unexpected response from QIS server")
 
     # Parse the scorecard from the HTML response.
-    scorecard = parse_scorecard(response.text)
+    scores: Dict[str, List[Module]] = parse_scores(response.text)
 
     # Check if the scorecard is valid.
-    if scorecard is None:
+    if scores is None:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-    grade_point_average = get_grade_point_average(scorecard)
+    grade_point_average = get_grade_point_average(scores)
 
     # Return the scorecard.
-    return Scorecard(scores=scorecard, grade_point_average=grade_point_average,
+    return Scorecard(scores=scores, grade_point_average=grade_point_average,
                      message="Successfully retrieved scorecard")

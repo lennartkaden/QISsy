@@ -12,7 +12,7 @@ The following models are defined:
 - `ScorecardIDs`: Represents a mapping of identifiers for available scorecards and a message confirming successful
   retrieval of these identifiers.
 - `ScoreType` and `ScoreStatus`: Enum classes representing various types and statuses of student scores respectively.
-- `IndividualScore` and `BaseScore`: Represent individual scores and base scores in a student's scorecard respectively,
+- `Score` and `Module`: Represent individual scores and base scores in a student's scorecard respectively,
   with detailed attributes such as id, title, type, semester, grade, status, issued date, number of attempts, and the
   ID of the specific scorecard if applicable.
 - `Scorecard`: Represents a student's scorecard as a list of BaseScores and includes the overall grade point average
@@ -87,7 +87,7 @@ class ScoreStatus(str, Enum):
     REGISTERED = "angemeldet"
 
 
-class IndividualScore(BaseModel):
+class Score(BaseModel):
     """
     Model to represent a score.
     """
@@ -106,9 +106,9 @@ class IndividualScore(BaseModel):
                                                  description="The ID of the specific scorecard")
 
 
-class BaseScore(BaseModel):
+class Module(BaseModel):
     """
-    Model to represent a score.
+    Model to represent a module.
     """
     id: int = Field(..., example=100, description="The number of the score")
     title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
@@ -116,10 +116,10 @@ class BaseScore(BaseModel):
     grade: Optional[float] = Field(None, example=1.3, description="The grade of the score if a individual score"
                                                                   " contains a grade. If multiple individual scores are"
                                                                   " present, this field is None.")
-    status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
+    status: Optional[ScoreStatus] = Field(..., example="bestanden", description="The state of the score")
     credits: Optional[int] = Field(None, example=10, description="The credits of the score")
     issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
-    individual_scores: List[IndividualScore] = Field(..., example=[{
+    scores: List[Score] = Field(..., example=[{
         "id": 110,
         "title": "Grundlagen der Informatik",
         "type": "PL",
@@ -147,7 +147,35 @@ class Scorecard(BaseModel):
     """
     Model to represent a scorecard.
     """
-    scores: list[BaseScore]
+    scores: dict[str, List[Module]] # Category name as key and list of Module as value
     grade_point_average: Optional[float] = Field(None, example=1.3, description="The grade point average")
     message: str = Field(..., example="Successfully retrieved scorecard",
                          description="A message indicating if the request was successful or not")
+
+
+class RowType(str, Enum):
+    """
+    Enum to represent the type of score.
+    """
+    CATEGORY = "category"
+    MODULE = "module"
+    SCORE = "score"
+    FAKE_SCORE = "fake_score"
+
+
+class TableRow(BaseModel):
+    """
+    Model to represent a row in a table.
+    """
+    id: str = Field(..., example="100", description="The number of the score")
+    title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
+    type: Optional[str] = Field(..., example="PL", description="The type of the score")
+    semester: Optional[str] = Field(..., example="WiSe 2024/25", description="The semester of the score")
+    grade: Optional[str] = Field(None, example="1,3", description="The grade of the score")
+    status: Optional[str] = Field(..., example="bestanden", description="The state of the score")
+    credits: Optional[str] = Field(None, example="10", description="The credits of the score")
+    issued_on: Optional[str] = Field(..., example="01.02.2018", description="The date of the score")
+    attempt: Optional[str] = Field(None, example="1", description="The number of the try")
+    note: Optional[str] = Field(None, example="RTE", description="A note for the score")
+    free_attempt: Optional[str] = Field(None, example="", description="")
+    row_type: Optional[RowType] = Field(..., example="category", description="The type of the row")
