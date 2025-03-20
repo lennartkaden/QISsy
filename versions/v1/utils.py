@@ -192,8 +192,8 @@ def print_table_rows(table_rows):
             print(f"{row.id:<10} {row.title:<50} {row.type:<10} {row.semester:<15} {row.grade:<5} "
                   f"{row.status:<15} {row.credits:<20} {row.issued_on:<15} {row.attempt:<5} "
                   f"{row.note:<5} {row.free_attempt:<5}  -  {row.row_type:<10}")
-        except:
-            print("Error printing row")
+        except Exception as e:
+            print(f"Error printing row: {e}")
     return None
 
 
