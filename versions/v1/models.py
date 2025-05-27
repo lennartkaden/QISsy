@@ -140,5 +140,5 @@ class TableRow(BaseModel):
     issued_on: Optional[str] = Field(..., examples=["01.02.2018"], description="The date of the score")
     attempt: Optional[str] = Field(None, examples=["1"], description="The number of the try")
     note: Optional[str] = Field(None, examples=["RTE"], description="A note for the score")
-    free_attempt: Optional[str] = Field(None, examples=[""], description="")
+    free_attempt: Optional[str] = Field(None, examples=[""], description="The status indicating whether the attempt was free (e.g., not counted against the total number of attempts).")
     row_type: Optional[RowType] = Field(..., examples=["category"], description="The type of the row")

@@ -260,8 +260,8 @@ async def get_scorecard(scorecard_id: str,
     scores: Dict[str, List[Module]] = parse_scores(response.text)
 
     # Check if the scorecard is valid.
-    if scores is None:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    if not scores:
+        raise HTTPException(status_code=500, detail="Scorecard is empty")
 
     grade_point_average = get_grade_point_average(scores)
 
