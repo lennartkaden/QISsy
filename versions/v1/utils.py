@@ -237,7 +237,7 @@ def _parse_table_rows(html_text):
 
 
 def _read_module_row(cells):
-    table_row = TableRow(
+    return TableRow(
         id=cells[0].text.strip(),
         title=cells[1].text.strip(),
         type=cells[2].text.strip(),
@@ -251,8 +251,6 @@ def _read_module_row(cells):
         free_attempt=cells[10].text.strip(),
         row_type=RowType.MODULE,
     )
-
-    return table_row
 
 
 def _read_category_row(cells):
