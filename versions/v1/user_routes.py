@@ -1,56 +1,13 @@
-"""
-This script defines an API router for a service that interacts with QIS server to perform
-several operations related to a user's educational records.
-
-Key functionalities provided by this router include:
-
-- **User Sign-in:** The user provides their login credential, which the API uses to authenticate the user on the QIS
-server and start a session. Upon successful authentication, it fetches and returns the user's display name, session
-cookie, and an additional security parameter -- all of which are necessary for subsequent API calls.
-
-- **Session validity check:** Checks if the current user session is still valid by making a request to QIS server.
-
-- **Retrieve Scorecard IDs:** Retrieves IDs of all scorecards available for the authenticated user.
-
-- **Retrieve Scorecard:** Retrieves a specific scorecard using its ID. The scorecard contains the user's grades, which
-are parsed, structured, and returned in a user-friendly format. Also calculates and returns the grade point average.
-
-In general, the helper functions defined in this file use the `requests` library to send HTTP requests to the QIS
-server. In each function, there are error handling blocks to manage the exceptions that could be raised during these
-HTTP requests, ensuring that meaningful results are returned at all times.
-
-This file is designed to handle API versioning, meaning that each function is versioned. Pydantic models are used to
-facilitate request body validation, serialization, and deserialization.
-
-Markdown code documentation and Python type hinting are used extensively throughout this file to provide clear,
-maintainable code.
-
-**Environment:** Python 3.10 with packages:  requests, fastapi, fastapi-versioning
-
-**Classes, Functions and Routes:**
-
-- Class `UserCredentials`: Pydantic model that defines the structure of the user credential data.
-- Class `UserSignInDetails`: Pydantic model that defines the structure of user sign-in details.
-- Class `ScorecardIDs`: Pydantic model that defines the structure of response for Scorecard IDs API endpoint.
-- Class `Scorecard`: Pydantic model that defines the structure of response for the Scorecard API endpoint.
-- Function `signin`: API endpoint POST /signin
-- Function `check_session_validity`: API endpoint GET /check_session
-- Function `get_scorecard_ids`: API endpoint GET /scorecard_ids
-- Function `get_scorecard`: API endpoint GET /scorecard
-- API Route prefix: Not specified in this script, to be prefixed at the application level, if required.
-
-A FastAPI `APIRouter` instance called `router` is created and used to define these endpoints. At the application level,
-the `router` can then be included in the main FastAPI application instance.
-"""
+from typing import Dict, List
 
 import requests
 from fastapi import APIRouter
 from fastapi import HTTPException, Header
 from fastapi_versioning import version
 
-from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard
+from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard, Module
 from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
-    parse_scorecard_ids, parse_scorecard, validate_session_or_raise, get_grade_point_average
+    parse_scorecard_ids, parse_scores, validate_session_or_raise, get_grade_point_average
 
 router = APIRouter()
 
@@ -300,14 +257,14 @@ async def get_scorecard(scorecard_id: str,
         raise HTTPException(status_code=500, detail="Unexpected response from QIS server")
 
     # Parse the scorecard from the HTML response.
-    scorecard = parse_scorecard(response.text)
+    scores: Dict[str, List[Module]] = parse_scores(response.text)
 
     # Check if the scorecard is valid.
-    if scorecard is None:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    if not scores:
+        raise HTTPException(status_code=500, detail="Scorecard is empty")
 
-    grade_point_average = get_grade_point_average(scorecard)
+    grade_point_average = get_grade_point_average(scores)
 
     # Return the scorecard.
-    return Scorecard(scores=scorecard, grade_point_average=grade_point_average,
+    return Scorecard(scores=scores, grade_point_average=grade_point_average,
                      message="Successfully retrieved scorecard")

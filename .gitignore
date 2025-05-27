@@ -168,3 +168,4 @@ cython_debug/
 
 # Config files
 config.json
+/Qissy-endpoints_1.http

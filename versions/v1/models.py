@@ -1,27 +1,3 @@
-"""
-This Python script defines Pydantic models that are used in the parent API to validate data, serialize and deserialize
-Python primitives to JSON, and generate OpenAPI schema.
-
-The following models are defined:
-
-- `ErrorResponse`: Represents error messages that are returned on HTTP errors.
-- `UserCredentials`: Represents the user's credentials (username and password).
-- `UserSignInDetails`: Represents the response returned when a user signs in, including a welcome message, user's
-  display name, session cookie, and an ASI parameter.
-- `SessionStatus`: Represents the current session's status, indicating its validity and a message.
-- `ScorecardIDs`: Represents a mapping of identifiers for available scorecards and a message confirming successful
-  retrieval of these identifiers.
-- `ScoreType` and `ScoreStatus`: Enum classes representing various types and statuses of student scores respectively.
-- `IndividualScore` and `BaseScore`: Represent individual scores and base scores in a student's scorecard respectively,
-  with detailed attributes such as id, title, type, semester, grade, status, issued date, number of attempts, and the
-  ID of the specific scorecard if applicable.
-- `Scorecard`: Represents a student's scorecard as a list of BaseScores and includes the overall grade point average
-  and a message confirming successful retrieval of the scorecard.
-
-Each model is represented by a class that inherits from pydantic's `BaseModel` or `str` for Enum. The schema and example
-values for the fields are defined by the `Field` function from pydantic, used in the attribute annotations. The data
-types for these fields include built-in Python data types and custom Enum classes.
-"""
 from enum import Enum
 from typing import Dict, Optional, List
 
@@ -33,17 +9,11 @@ class ErrorResponse(BaseModel):
 
 
 class UserCredentials(BaseModel):
-    """
-    Model for the user's credentials.
-    """
     username: str
     password: str
 
 
 class UserSignInDetails(BaseModel):
-    """
-    Model for the user's sign in details.
-    """
     message: str
     user_display_name: str
     session_cookie: str
@@ -51,17 +21,11 @@ class UserSignInDetails(BaseModel):
 
 
 class SessionStatus(BaseModel):
-    """
-    Model to represent the validity of a session.
-    """
     is_valid: bool
     message: str
 
 
 class ScorecardIDs(BaseModel):
-    """
-    Modell zur Darstellung der Scorecard-IDs.
-    """
     scorecard_ids: Dict[str, str] = Field(..., example={
         "Informatik  (PO-Version 2017)": "auswahlBaum|abschluss:abschl=82|studiengang:stg=079,pversion=2017,kzfa=H",
         "Informatik  (PO-Version 2004)": "auswahlBaum|abschluss:abschl=82|studiengang:stg=079,pversion=2004,kzfa=H"},
@@ -87,7 +51,7 @@ class ScoreStatus(str, Enum):
     REGISTERED = "angemeldet"
 
 
-class IndividualScore(BaseModel):
+class Score(BaseModel):
     """
     Model to represent a score.
     """
@@ -106,20 +70,20 @@ class IndividualScore(BaseModel):
                                                  description="The ID of the specific scorecard")
 
 
-class BaseScore(BaseModel):
+class Module(BaseModel):
     """
-    Model to represent a score.
+    Model to represent a module.
     """
-    id: int = Field(..., example=100, description="The number of the score")
-    title: str = Field(..., example="Grundlagen der Informatik", description="The name of the score")
-    semester: str = Field(..., example="WS 2017/18", description="The semester of the score")
-    grade: Optional[float] = Field(None, example=1.3, description="The grade of the score if a individual score"
+    id: int = Field(..., examples=[100], description="The number of the score")
+    title: str = Field(..., examples=["Grundlagen der Informatik"], description="The name of the score")
+    semester: str = Field(..., examples=["WS 2017/18"], description="The semester of the score")
+    grade: Optional[float] = Field(None, examples=[1.3], description="The grade of the score if a individual score"
                                                                   " contains a grade. If multiple individual scores are"
                                                                   " present, this field is None.")
-    status: ScoreStatus = Field(..., example="bestanden", description="The state of the score")
-    credits: Optional[int] = Field(None, example=10, description="The credits of the score")
-    issued_on: str = Field(..., example="01.02.2018", description="The date of the score")
-    individual_scores: List[IndividualScore] = Field(..., example=[{
+    status: Optional[ScoreStatus] = Field(..., examples=["bestanden", "nicht bestanden"], description="The state of the score")
+    credits: Optional[int] = Field(None, examples=[10], description="The credits of the score")
+    issued_on: str = Field(..., examples=["01.02.2018"], description="The date of the score")
+    scores: List[Score] = Field(..., description="A list of individual scores", examples=[[{
         "id": 110,
         "title": "Grundlagen der Informatik",
         "type": "PL",
@@ -140,14 +104,41 @@ class BaseScore(BaseModel):
         "issued_on": "01.02.2018",
         "attempt": 1,
         "specific_scorecard_id": None
-    }], description="A list of individual scores")
+    }]])
 
 
 class Scorecard(BaseModel):
     """
     Model to represent a scorecard.
     """
-    scores: list[BaseScore]
-    grade_point_average: Optional[float] = Field(None, example=1.3, description="The grade point average")
-    message: str = Field(..., example="Successfully retrieved scorecard",
+    scores: dict[str, List[Module]] # Category name as key and list of Module as value
+    grade_point_average: Optional[float] = Field(None, examples=[1.3], description="The grade point average")
+    message: str = Field(..., examples=["Successfully retrieved scorecard"],
                          description="A message indicating if the request was successful or not")
+
+
+class RowType(str, Enum):
+    """
+    Enum to represent the type of score.
+    """
+    CATEGORY = "category"
+    MODULE = "module"
+    SCORE = "score"
+
+
+class TableRow(BaseModel):
+    """
+    Model to represent a row in a table.
+    """
+    id: str = Field(..., examples=["100"], description="The number of the score")
+    title: str = Field(..., examples=["Grundlagen der Informatik"], description="The name of the score")
+    type: Optional[str] = Field(..., examples=["PL"], description="The type of the score")
+    semester: Optional[str] = Field(..., examples=["WiSe 2024/25"], description="The semester of the score")
+    grade: Optional[str] = Field(None, examples=["1,3"], description="The grade of the score")
+    status: Optional[str] = Field(..., examples=["bestanden", "nicht bestanden"], description="The state of the score")
+    credits: Optional[str] = Field(None, examples=["10"], description="The credits of the score")
+    issued_on: Optional[str] = Field(..., examples=["01.02.2018"], description="The date of the score")
+    attempt: Optional[str] = Field(None, examples=["1"], description="The number of the try")
+    note: Optional[str] = Field(None, examples=["RTE"], description="A note for the score")
+    free_attempt: Optional[str] = Field(None, examples=[""], description="The status indicating whether the attempt was free (e.g., not counted against the total number of attempts).")
+    row_type: Optional[RowType] = Field(..., examples=["category"], description="The type of the row")

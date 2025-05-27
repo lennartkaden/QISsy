@@ -1,61 +1,13 @@
-"""
-This Python script defines various helper functions for the parent API router to interact with a QIS
-server and parse its responses.
-
-Key functionalities include:
-
-- **ASI Parameter Parsing:** The parse_asi_parameter function extracts the ASI parameter from the HTML response.
-
-- **Parse User Display Name:** This function extracts the user's display name from the HTML response.
-
-- **Session Validity:** This function checks if the current user session is still valid on the QIS server.
-
-- **Parse Scorecard IDs:** This function extracts the scorecard IDs from the HTML response from the QIS server.
-
-- **Parse Base Score and Individual Score Rows:** These functions parse the details of the grades contained in a
-  scorecard from the HTML response of a scorecard page and format them into the structured model
-  (BaseScore or IndividualScore).
-
-- **Parse Scorecard:** This function extracts an entire scorecard from an HTML response from the QIS server.
-  It uses parse_base_score_row and parse_individual_score_row functions to parse the scorecard information.
-
-- **Session Validation:** This function checks if the incoming session cookie is still valid on the QIS system. This is
-  used before making any requests that require an authenticated session.
-
-- **Grade Point Average Calculation:** This function parses the grades from the scorecard and calculates the grade
-  point average.
-
-Most functions in this script operate by sending HTTP requests to the QIS server or parsing the HTML responses from the
-server using BeautifulSoup. Error handling is implemented to handle potential exceptions, providing meaningful
-responses to the user.
-
-**Environment:** Python 3.10 with packages: requests, beautifulsoup4, fastapi
-
-**Classes, Methods, and Functions:**
-
-- Function `parse_asi_parameter`: Parses the ASI parameter from the HTML response
-- Function `parse_user_display_name`: Parses the user's display name from the HTML response
-- Function `_session_is_valid`: Checks if the current user session is still valid
-- Function `parse_scorecard_ids`: Parses the scorecard IDs from the HTML response
-- Function `parse_base_score_row`: Parse single row of scores into BaseScore model
-- Function `parse_individual_score_row`: Parse single row of scores into IndividualScore model
-- Function `parse_scorecard`: Parses the whole scorecard from the HTML response
-- Function `validate_session_or_raise`: Validate current session or raise http exception
-- Function `get_grade_point_average`: Calculates the grade point average from a scorecard.
-"""
-
-
-import contextlib
 from typing import Dict, Optional, List
 from urllib.parse import urlparse, parse_qs
 
 import bs4
 import requests
-from bs4 import NavigableString
+from bs4 import NavigableString, BeautifulSoup, Comment
 from fastapi import HTTPException
 
 from config import get_config_value
-from .models import BaseScore, ScoreStatus, IndividualScore, ScoreType
+from .models import Module, ScoreStatus, Score, ScoreType, TableRow, RowType
 
 BASE_URL = get_config_value("QIS/BASE_URL")
 SERVICE_PATH = get_config_value("QIS/SERVICE_PATH")
@@ -139,137 +91,200 @@ def parse_scorecard_ids(html_text: str) -> Dict[str, str]:
 
     return scorecard_ids
 
+def _parse_float(value: str) -> Optional[float]:
+    text = value.strip().replace("\xa0", "").replace("&nbsp;", "").replace(",", ".")
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
 
-def parse_base_score_row(cells) -> BaseScore:
-    """
-    Parses the base score from the HTML response.
-    :param cells: Cells of the row.
-    :return: Base score.
-    """
-    score_id: int = int(cells[0].text.strip())
-    title: str = cells[1].text.strip()
-    semester: str = cells[3].text.strip()
-    grade: Optional[float] = None
-
-    raw_score_status: str = cells[5].text.strip()
-    if not raw_score_status:
-        raw_score_status = "angemeldet"
-
-    status: ScoreStatus = ScoreStatus(raw_score_status)
-    score_credits: int or None = int(cells[6].text.strip()) if cells[6].text.strip() else None
-    issued_on: str = cells[7].text.strip()
-
-    return BaseScore(id=score_id, title=title, semester=semester, grade=grade, status=status, credits=score_credits,
-                     issued_on=issued_on, individual_scores=[])
+def _parse_int(value: str) -> Optional[int]:
+    text = value.strip().replace("\xa0", "").replace("&nbsp;", "")
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
-def parse_individual_score_row(cells) -> IndividualScore:
-    """
-    Parses the individual score from the HTML response.
-    :param cells: Cells of the row.
-    :return: Individual score.
-    """
-
-    score_id: int = int(cells[0].text.strip())
-    title: str = cells[1].text.strip()
-    score_type: ScoreType = ScoreType(cells[2].text.strip())
-    semester: str = cells[3].text.strip()
-
-    specific_scorecard_id: Optional[str] = None
-
-    if cells[4].text.strip():
-        grade: Optional[float] = float(cells[4].text.strip().replace(",", "."))
-
-        with contextlib.suppress(Exception):
-            specific_scorecard_url = cells[4].contents[1].attrs['href']
-
-            # Split the url into its components
-            parsed_url = urlparse(specific_scorecard_url)
-
-            # extract the parameters from the url
-            query_params = parse_qs(parsed_url.query)
-
-            specific_scorecard_id: Optional[str] = query_params["nodeID"][0]
-
-    else:
-        grade: Optional[float] = None
-
-    status: ScoreStatus = ScoreStatus(cells[5].text.strip())
-    issued_on: str = cells[7].text.strip()
-
-    if cells[8].text.strip():
-        attempt: Optional[int] = int(cells[8].text.strip())
-    else:
-        attempt: Optional[int] = None
-
-    return IndividualScore(id=score_id, title=title, type=score_type, semester=semester, grade=grade, status=status,
-        issued_on=issued_on, attempt=attempt, specific_scorecard_id=specific_scorecard_id)
+def _parse_status(status: str) -> ScoreStatus:
+    status = status.strip().replace("\xa0", "").replace("&nbsp;", "")
+    if not status:
+        return None
+    try:
+        return ScoreStatus(status)
+    except ValueError:
+        return None
 
 
-def parse_scorecard(html_text: str) -> List[BaseScore] or None:
-    """
-    Parses the scorecard from the HTML response.
-    :param html_text: HTML response from the QIS server.
-    :return: Scorecard.
-    """
-    soup = bs4.BeautifulSoup(html_text, "html.parser")
+def parse_scores(html_text: str) -> Dict[str, List[Module]]:
+    table_rows: List[TableRow] = _parse_table_rows(html_text)
 
-    # find the table with the scores
-    table = soup.findAll("table")[1]
+    print_table_rows(table_rows)
 
-    # get the rows of the table
-    rows = table.findAll("tr")
+    scores = {}
 
-    # remove the first row, because it contains the table headers
-    rows.pop(0)
+    current_category: str = "Unknown"
+    current_module: Optional[Module] = None
+    current_module_category: str = current_category
+    score_found = False
 
-    # create a list to store the scores
-    scores = []
-
-    latest_base_score = None
-    skip_next_row = False
-
-    # iterate over the rows
-    for row in rows:
-        # get the cells of the row
-        cells = row.findAll("td")
-
-        if skip_next_row:
-            skip_next_row = False
+    for row in table_rows[1:]:
+        # Check if the row is a category row
+        if row.row_type == RowType.CATEGORY:
+            current_category = row.title.removeprefix("Kompetenzbereich ")
             continue
 
-        # check if the row has the expected structure
-        if len(cells) != 11:
-            # if the row has not 11 cells, it is not a score row, but a title row. This row is followed by another row,
-            # which should be skipped
-            skip_next_row = True
-            continue
+        if row.row_type == RowType.MODULE:
+            # If the previous module had no scores, remove it from the scores
+            if not score_found and current_module and current_module_category in scores:
+                scores[current_module_category].remove(current_module)
 
-        if not cells[6].text.strip() and cells[7].text.strip():
-            continue
+            current_module = Module(
+                id=_parse_int(row.id),
+                title=row.title,
+                semester=row.semester,
+                grade=_parse_float(row.grade),
+                status=_parse_status(row.status),
+                credits=_parse_int(row.credits),
+                issued_on=row.issued_on,
+                scores=[]
+            )
 
-        # get the score's type
-        if not cells[2].text.strip():
-            latest_base_score = parse_base_score_row(cells)
-            scores.append(latest_base_score)
-        elif latest_base_score is not None:
-            if len(row.contents) < 4:
-                continue
-            latest_base_score.individual_scores.append(parse_individual_score_row(cells))
+            current_module_category = current_category
+            score_found = False
 
-    for score in scores:
-        # if exactly one individual score has a grade, set the grade of the base score to that grade
-        amount_of_grades = 0
-        for individual_score in score.individual_scores:
-            if individual_score.grade is not None:
-                amount_of_grades += 1
-                score.grade = individual_score.grade
+            if current_category not in scores:
+                scores[current_category] = []
 
-        if amount_of_grades != 1:
-            score.grade = None
+            scores[current_category].append(current_module)
+
+        elif row.row_type == RowType.SCORE and current_module:
+            # Check if the row is a score row
+            score_found = True
+            individual_score = Score(
+                id=_parse_int(row.id),
+                title=row.title,
+                type=ScoreType(row.type),
+                semester=row.semester,
+                grade=_parse_float(row.grade),
+                status=_parse_status(row.status),
+                issued_on=row.issued_on,
+                attempt=_parse_int(row.attempt),
+                specific_scorecard_id=None, # TODO: parse this from the HTML
+            )
+            current_module.scores.append(individual_score)
+
+            if (individual_score.grade is not None and current_module.grade is None
+                    and individual_score.status == ScoreStatus.PASSED):
+                current_module.grade = individual_score.grade
 
     return scores
 
+
+def print_table_rows(table_rows):
+    # print the table rows for debugging with uniform spacing
+    for row in table_rows:
+        try:
+            print(f"{row.id:<10} {row.title:<50} {row.type:<10} {row.semester:<15} {row.grade:<5} "
+                  f"{row.status:<15} {row.credits:<20} {row.issued_on:<15} {row.attempt:<5} "
+                  f"{row.note:<5} {row.free_attempt:<5}  -  {row.row_type:<10}")
+        except Exception as e:
+            print(f"Error printing row: {e}")
+    return None
+
+
+def _parse_table_rows(html_text):
+    soup = BeautifulSoup(html_text, "html.parser")
+    table = soup.find_all("table")[1]
+    table_rows: List[TableRow] = []
+    # Iterate over all rows in the table
+    for row in table.contents:
+        try:
+            if type(row) is NavigableString:
+                continue
+
+            cells = [cell for cell in row.contents if type(cell) not in [NavigableString, Comment]]
+            html_classes = set()
+            for cell in cells:
+                try:
+                    for html_class in cell.attrs.get("class", []):
+                        html_classes.add(html_class)
+                except Exception as e:
+                    print(e)
+
+            if len(cells) >= 11:
+                table_row = _read_module_row(cells)
+            elif len(cells) == 10:
+                table_row = _read_category_row(cells)
+            elif len(cells) <= 2:
+                score_cells = [score_cell for score_cell in cells[0].contents if
+                               type(score_cell) not in [NavigableString, Comment]]
+                if len(score_cells) < 10:
+                    continue
+                else:
+                    table_row = _read_score_row(score_cells)
+            else:
+                continue
+            # Append the parsed row to the list
+            table_rows.append(table_row)
+        except Exception as e:
+            print(e)
+    return table_rows
+
+
+def _read_module_row(cells):
+    return TableRow(
+        id=cells[0].text.strip(),
+        title=cells[1].text.strip(),
+        type=cells[2].text.strip(),
+        semester=cells[3].text.strip(),
+        grade=cells[4].text.strip(),
+        status=cells[5].text.strip(),
+        credits=cells[6].text.strip(),
+        issued_on=cells[7].text.strip(),
+        attempt=cells[8].text.strip(),
+        note=cells[9].text.strip(),
+        free_attempt=cells[10].text.strip(),
+        row_type=RowType.MODULE,
+    )
+
+
+def _read_category_row(cells):
+    return TableRow(
+        id=cells[0].text.strip(),
+        title=cells[1].text.strip(),
+        type="",
+        semester=cells[2].text.strip(),
+        grade=cells[3].text.strip(),
+        status=cells[4].text.strip(),
+        credits=cells[5].text.strip(),
+        issued_on=cells[6].text.strip(),
+        attempt=cells[7].text.strip(),
+        note=cells[8].text.strip(),
+        free_attempt=cells[9].text.strip(),
+        row_type=RowType.CATEGORY,
+    )
+
+
+def _read_score_row(score_cells):
+    return TableRow(
+        id=score_cells[0].text.strip(),
+        title=score_cells[1].text.strip(),
+        type=score_cells[2].text.strip(),
+        semester=score_cells[3].text.strip(),
+        grade=score_cells[4].text.strip(),
+        status=score_cells[5].text.strip(),
+        credits=score_cells[6].text.strip(),
+        issued_on=score_cells[7].text.strip(),
+        attempt=score_cells[8].text.strip(),
+        note=score_cells[9].text.strip(),
+        free_attempt=score_cells[10].text.strip(),
+        row_type=RowType.SCORE,
+    )
 
 async def validate_session_or_raise(session_cookie):
     """
@@ -287,21 +302,29 @@ async def validate_session_or_raise(session_cookie):
         raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
 
-def get_grade_point_average(scorecard: List[BaseScore]) -> float or None:
+def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None:
     """
     parse the grades from the scorecard by iterating over the individual scores,
-    multiplying the grade with the credits from the base score and summing them up
+    multiplying the grade with the credits from the base module and summing them up
     :param scorecard: the scorecard to parse
     :return: the grade point average
     """
     great_point_average: float = 0.0
     amount_of_credits: int = 0
 
-    for score in scorecard:
-        for individual_score in score.individual_scores:
-            if individual_score.grade is not None:
-                great_point_average += individual_score.grade * score.credits
-                amount_of_credits += score.credits
+    # combine every module from the dict into a single list
+    all_modules: List[Module] = []
+    for modules in scorecard.values():
+        all_modules.extend(modules)
+
+    for module in all_modules:
+        for score in module.scores:
+            if score.grade is not None and module.credits is not None:
+                try:
+                    great_point_average += score.grade * module.credits
+                    amount_of_credits += module.credits
+                except Exception as e:
+                    print(e)
 
     # divide the sum of the grades by the number of credits
     if amount_of_credits > 0:
