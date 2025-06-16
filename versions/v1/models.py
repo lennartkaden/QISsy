@@ -127,6 +127,7 @@ class Scorecard(BaseModel):
     """
     scores: dict[str, List[Module]] # Category name as key and list of Module as value
     grade_point_average: Optional[float] = Field(None, examples=[1.3], description="The grade point average")
+    credit_point_sum: Optional[int] = Field(None, examples=[180], description="The sum of credit points")
     message: str = Field(..., examples=["Successfully retrieved scorecard"],
                          description="A message indicating if the request was successful or not")
 

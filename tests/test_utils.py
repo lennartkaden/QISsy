@@ -72,6 +72,28 @@ def test_get_grade_point_average():
     gpa = utils.get_grade_point_average({'Cat': [module]})
     assert gpa == 1.0
 
+
+def test_get_credit_point_sum():
+    from versions.v1 import utils
+    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
+    importlib.reload(utils)
+    module = Module(
+        id=1,
+        title='Mod',
+        semester='WS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=5,
+        issued_on='date',
+        scores=[
+            Score(id=1, title='Score', type=ScoreType.PL, semester='WS', grade=1.0,
+                  status=ScoreStatus.PASSED, issued_on='date', attempt=1,
+                  specific_scorecard_id=None)
+        ]
+    )
+    credit_sum = utils.get_credit_point_sum({'Cat': [module]})
+    assert credit_sum == 5
+
 def test_parse_scores(monkeypatch):
     from versions.v1 import utils
     from versions.v1.models import TableRow, RowType

@@ -58,3 +58,30 @@ def test_check_session_validity(config_and_client):
     resp = client.get('/v1.0/check_session', headers={'session-cookie': 'ABC'})
     assert resp.status_code == 200
     assert resp.json()['is_valid'] is True
+
+
+@responses.activate
+def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
+    client = config_and_client
+    import versions.v1.user_routes as routes
+    from versions.v1.user_routes import SERVICE_BASE_URL
+
+    async def dummy_validate(_):
+        return None
+
+    monkeypatch.setattr(routes, 'validate_session_or_raise', dummy_validate)
+    monkeypatch.setattr(routes, 'parse_scores', lambda html: {'Cat': []})
+    monkeypatch.setattr(routes, 'get_grade_point_average', lambda scores: 1.0)
+    monkeypatch.setattr(routes, 'get_credit_point_sum', lambda scores: 30)
+
+    url = (
+        f"{SERVICE_BASE_URL}?state=notenspiegelStudent&menu_open=n&next=list.vm&nextdir=qispos/notenspiegel/student"
+        f"&createInfos=Y&struct=auswahlBaum&nodeID=NODE&expand=0&asi=ASI"
+    )
+    responses.add(responses.GET, url, body='HTML', status=200)
+
+    resp = client.get('/v1.0/scorecard', params={'scorecard_id': 'NODE'}, headers={'session-cookie': 'ABC', 'asi': 'ASI'})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['grade_point_average'] == 1.0
+    assert data['credit_point_sum'] == 30
