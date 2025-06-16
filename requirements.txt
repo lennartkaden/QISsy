@@ -4,3 +4,5 @@ fastapi==0.103.2
 pydantic==2.4.2
 uvicorn==0.23.2
 fastapi_versioning==0.10.0
+httpx==0.25.2
+responses==0.23.1
