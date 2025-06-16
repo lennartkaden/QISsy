@@ -6,6 +6,8 @@ import requests
 from bs4 import NavigableString, BeautifulSoup, Comment
 from fastapi import HTTPException
 
+from logging_config import logger
+
 from config import get_config_value
 from .models import Module, ScoreStatus, Score, ScoreType, TableRow, RowType
 
@@ -123,7 +125,7 @@ def _parse_status(status: str) -> ScoreStatus:
 def parse_scores(html_text: str) -> Dict[str, List[Module]]:
     table_rows: List[TableRow] = _parse_table_rows(html_text)
 
-    print_table_rows(table_rows)
+    log_table_rows(table_rows)
 
     scores = {}
 
@@ -185,15 +187,17 @@ def parse_scores(html_text: str) -> Dict[str, List[Module]]:
     return scores
 
 
-def print_table_rows(table_rows):
-    # print the table rows for debugging with uniform spacing
+def log_table_rows(table_rows):
+    """Log the table rows for debugging with uniform spacing."""
     for row in table_rows:
         try:
-            print(f"{row.id:<10} {row.title:<50} {row.type:<10} {row.semester:<15} {row.grade:<5} "
-                  f"{row.status:<15} {row.credits:<20} {row.issued_on:<15} {row.attempt:<5} "
-                  f"{row.note:<5} {row.free_attempt:<5}  -  {row.row_type:<10}")
+            logger.debug(
+                f"{row.id:<10} {row.title:<50} {row.type:<10} {row.semester:<15} {row.grade:<5} "
+                f"{row.status:<15} {row.credits:<20} {row.issued_on:<15} {row.attempt:<5} "
+                f"{row.note:<5} {row.free_attempt:<5}  -  {row.row_type:<10}"
+            )
         except Exception as e:
-            print(f"Error printing row: {e}")
+            logger.exception("Error printing row: %s", e)
     return None
 
 
@@ -214,7 +218,7 @@ def _parse_table_rows(html_text):
                     for html_class in cell.attrs.get("class", []):
                         html_classes.add(html_class)
                 except Exception as e:
-                    print(e)
+                    logger.exception(e)
 
             if len(cells) >= 11:
                 table_row = _read_module_row(cells)
@@ -232,7 +236,7 @@ def _parse_table_rows(html_text):
             # Append the parsed row to the list
             table_rows.append(table_row)
         except Exception as e:
-            print(e)
+            logger.exception(e)
     return table_rows
 
 
@@ -324,7 +328,7 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None
                     grade_point_average += score.grade * module.credits
                     amount_of_credits += module.credits
                 except Exception as e:
-                    print(e)
+                    logger.exception(e)
 
     # divide the sum of the grades by the number of credits
     if amount_of_credits > 0:
