@@ -309,7 +309,7 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None
     :param scorecard: the scorecard to parse
     :return: the grade point average
     """
-    great_point_average: float = 0.0
+    grade_point_average: float = 0.0
     amount_of_credits: int = 0
 
     # combine every module from the dict into a single list
@@ -321,15 +321,15 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None
         for score in module.scores:
             if score.grade is not None and module.credits is not None:
                 try:
-                    great_point_average += score.grade * module.credits
+                    grade_point_average += score.grade * module.credits
                     amount_of_credits += module.credits
                 except Exception as e:
                     print(e)
 
     # divide the sum of the grades by the number of credits
     if amount_of_credits > 0:
-        great_point_average /= amount_of_credits
+        grade_point_average /= amount_of_credits
     else:
         return None
 
-    return round(great_point_average, 2)
+    return round(grade_point_average, 2)
