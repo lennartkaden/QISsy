@@ -85,3 +85,13 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     data = resp.json()
     assert data['grade_point_average'] == 1.0
     assert data['credit_point_sum'] == 30
+
+
+def test_info_endpoint(config_and_client):
+    client = config_and_client
+    import main
+    resp = client.get('/info')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['name'] == 'QISsy'
+    assert data['version'] == main.__version__

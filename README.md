@@ -104,6 +104,8 @@ This API comes with a set of versioned endpoints that serve different functional
 
 ### Endpoints summary:
 
+- GET `/info` - Provides information about the running QISsy instance.
+
 - POST `/v1.0/signin` - Authenticates the user using provided credentials.
 - GET `/v1.0/check_session` - Checks whether an existing session is valid.
 - GET `/v1.0/scorecard_ids` - Retrieves the identifiers of available scorecards for the user.
