@@ -91,7 +91,7 @@ class Module(BaseModel):
     id: int = Field(..., examples=[100], description="The number of the score")
     title: str = Field(..., examples=["Grundlagen der Informatik"], description="The name of the score")
     semester: str = Field(..., examples=["WS 2017/18"], description="The semester of the score")
-    grade: Optional[float] = Field(None, examples=[1.3], description="The grade of the score if a individual score"
+    grade: Optional[float] = Field(None, examples=[1.3], description="The grade of the score if an individual score"
                                                                   " contains a grade. If multiple individual scores are"
                                                                   " present, this field is None.")
     status: Optional[ScoreStatus] = Field(..., examples=["bestanden", "nicht bestanden"], description="The state of the score")
