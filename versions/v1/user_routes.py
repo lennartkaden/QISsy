@@ -152,10 +152,18 @@ async def check_session_validity(session_cookie: str = Header(...)):  # The sess
                        500: {"description": "Internal server error", "model": ErrorResponse},
                        503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
 @version(1, 0)
-async def get_scorecard_ids(session_cookie: str = Header(..., description="The data containing the JSESSIONID cookie.",
-                                                         example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
-                            asi: str = Header(..., description="The ASI parameter.",
-                                              example="tnEJEgEd8dAPRC.kaurx")) -> ScorecardIDs:
+async def get_scorecard_ids(
+        session_cookie: str = Header(
+            ...,
+            description="The data containing the JSESSIONID cookie.",
+            examples=["ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"],
+        ),
+        asi: str = Header(
+            ...,
+            description="The ASI parameter.",
+            examples=["tnEJEgEd8dAPRC.kaurx"],
+        ),
+) -> ScorecardIDs:
     """
     :param session_cookie: The data containing the JSESSIONID cookie. (required)
     :param asi: The ASI parameter. (required)
@@ -208,11 +216,19 @@ async def get_scorecard_ids(session_cookie: str = Header(..., description="The d
                        500: {"description": "Internal server error", "model": ErrorResponse},
                        503: {"description": "Service temporarily unavailable", "model": ErrorResponse}})
 @version(1, 0)
-async def get_scorecard(scorecard_id: str,
-                        session_cookie: str = Header(..., description="The data containing the JSESSIONID cookie.",
-                                                     example="ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"),
-                        asi: str = Header(..., description="The ASI parameter.",
-                                          example="tnEJEgEd8dAPRC.kaurx")) -> Scorecard:
+async def get_scorecard(
+        scorecard_id: str,
+        session_cookie: str = Header(
+            ...,
+            description="The data containing the JSESSIONID cookie.",
+            examples=["ETHEWEBNTZRH45iEGFORTNB839FHCB93.uhvqis1"],
+        ),
+        asi: str = Header(
+            ...,
+            description="The ASI parameter.",
+            examples=["tnEJEgEd8dAPRC.kaurx"],
+        ),
+) -> Scorecard:
     """
     :param scorecard_id: The ID of the scorecard to retrieve.
     :param session_cookie: The session cookie containing the JSESSIONID.
