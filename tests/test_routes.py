@@ -61,6 +61,17 @@ def test_check_session_validity(config_and_client):
 
 
 @responses.activate
+def test_check_session_invalid(config_and_client):
+    client = config_and_client
+    from versions.v1.user_routes import SERVICE_BASE_URL
+    check_url = f"{SERVICE_BASE_URL}?state=user&type=0&application=lsf"
+    responses.add(responses.GET, check_url, body='<html>Passwort</html>', status=200)
+    resp = client.get('/v1.0/check_session', headers={'session-cookie': 'ABC'})
+    assert resp.status_code == 200
+    assert resp.json() == {"is_valid": False, "message": "Session is invalid"}
+
+
+@responses.activate
 def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     client = config_and_client
     import versions.v1.user_routes as routes
