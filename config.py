@@ -3,13 +3,13 @@ import json
 
 def get_config_value(config_key: str) -> str:
     """
-    Get the setting from the settings.json file.
+    Get the setting from the config.json file.
     Args:
         config_key: The settings string looks like: "DEVICE/LOCATION_ID"
                     with the equivalent json key being [DEVICE"]["LOCATION_ID"]
 
     Returns: The value of the json key
-    Examples: get_setting("DEVICE/LOCATION_ID")
+    Examples: get_config_value("DEVICE/LOCATION_ID")
 
     See Also: config.json
     References: config_example.json
