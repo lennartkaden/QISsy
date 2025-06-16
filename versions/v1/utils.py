@@ -17,11 +17,11 @@ SERVICE_BASE_URL = f"{BASE_URL}{SERVICE_PATH}"
 USER_DISPLAY_NAME_INDEX = 8
 
 
-def parse_asi_parameter(response_text: str) -> str or None:
-    """
-    Parses the ASI parameter from the HTML response.
+def parse_asi_parameter(response_text: str) -> Optional[str]:
+    """Parse the ASI parameter from the HTML response.
+
     :param response_text: HTML response from the QIS server.
-    :return: ASI parameter or None if it could not be parsed.
+    :return: The ASI parameter if present, otherwise ``None``.
     """
     soup = bs4.BeautifulSoup(response_text, "html.parser")
 
@@ -112,7 +112,8 @@ def _parse_int(value: str) -> Optional[int]:
         return None
 
 
-def _parse_status(status: str) -> ScoreStatus:
+def _parse_status(status: str) -> Optional[ScoreStatus]:
+    """Convert a status string to :class:`ScoreStatus` if possible."""
     status = status.strip().replace("\xa0", "").replace("&nbsp;", "")
     if not status:
         return None
@@ -306,12 +307,14 @@ async def validate_session_or_raise(session_cookie):
         raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
 
-def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None:
-    """
-    parse the grades from the scorecard by iterating over the individual scores,
-    multiplying the grade with the credits from the base module and summing them up
-    :param scorecard: the scorecard to parse
-    :return: the grade point average
+def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> Optional[float]:
+    """Calculate the grade point average for a scorecard.
+
+    The GPA is determined by multiplying each score grade with the credits of its
+    module and dividing the sum by the total credits.
+
+    :param scorecard: The scorecard to parse.
+    :return: The grade point average or ``None`` if it can't be calculated.
     """
     grade_point_average: float = 0.0
     amount_of_credits: int = 0
