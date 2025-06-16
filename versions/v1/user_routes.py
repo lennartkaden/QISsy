@@ -7,7 +7,7 @@ from fastapi_versioning import version
 
 from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard, Module
 from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
-    parse_scorecard_ids, parse_scores, validate_session_or_raise, get_grade_point_average
+    parse_scorecard_ids, parse_scores, validate_session_or_raise, get_grade_point_average, get_credit_point_sum
 
 router = APIRouter()
 
@@ -280,7 +280,10 @@ async def get_scorecard(
         raise HTTPException(status_code=500, detail="Scorecard is empty")
 
     grade_point_average = get_grade_point_average(scores)
+    credit_point_sum = get_credit_point_sum(scores)
 
     # Return the scorecard.
-    return Scorecard(scores=scores, grade_point_average=grade_point_average,
+    return Scorecard(scores=scores,
+                     grade_point_average=grade_point_average,
+                     credit_point_sum=credit_point_sum,
                      message="Successfully retrieved scorecard")

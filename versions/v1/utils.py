@@ -337,3 +337,25 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> float or None
         return None
 
     return round(grade_point_average, 2)
+
+
+def get_credit_point_sum(scorecard: Dict[str, List[Module]]) -> int:
+    """Return the sum of credits for all modules that contain a graded score."""
+    credit_sum = 0
+
+    all_modules: List[Module] = []
+    for modules in scorecard.values():
+        all_modules.extend(modules)
+
+    for module in all_modules:
+        if module.credits is None:
+            continue
+        for score in module.scores:
+            if score.grade is not None:
+                try:
+                    credit_sum += module.credits
+                except Exception as e:
+                    logger.exception(e)
+                break
+
+    return credit_sum

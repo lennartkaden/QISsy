@@ -29,7 +29,7 @@ scorecards and grades in an efficient and user-friendly way.
 - User Authentication
 - Session Validity Checks
 - Retrieval of Scorecard Identifiers
-- Retrieval of Full Scorecards including detailed grades and grade point average
+- Retrieval of Full Scorecards including detailed grades, grade point average and credit point sum
 
 ### Technical Environment
 
