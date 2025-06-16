@@ -26,6 +26,14 @@ def test_parse_asi_parameter():
     assert utils.parse_asi_parameter(html) == 'ABC123'
 
 
+def test_parse_asi_parameter_missing_link():
+    """Return None if the link is missing."""
+    from versions.v1 import utils
+    importlib.reload(utils)
+    html = '<a href="page?asi=ABC123">Wrong link</a>'
+    assert utils.parse_asi_parameter(html) is None
+
+
 def test_parse_user_display_name():
     from versions.v1 import utils
     importlib.reload(utils)
