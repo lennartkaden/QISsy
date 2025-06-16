@@ -66,7 +66,7 @@ class Score(BaseModel):
     """
     id: int = Field(..., examples=[110], description="The number of the score")
     title: str = Field(..., examples=["Grundlagen der Informatik"], description="The name of the score")
-    type: ScoreType = Field(..., examples=["Prüfungsleitung"], description="The type of the score")
+    type: ScoreType = Field(..., examples=["Prüfungsleistung"], description="The type of the score")
     semester: str = Field(..., examples=["WS 2017/18"], description="The semester of the score")
     grade: Optional[float] = Field(None, examples=[1.3], description="The grade of the score")
     status: ScoreStatus = Field(..., examples=["bestanden"], description="The state of the score")
