@@ -33,7 +33,7 @@ scorecards and grades in an efficient and user-friendly way.
 
 ### Technical Environment
 
-- FastAPI framework for building APIs with Python 3.7+ based on Pydantic and type hints.
+ - FastAPI framework for building APIs with Python 3.9+ based on Pydantic and type hints.
 - fastapi-versioning to manage version control within FastAPI endpoints.
 - Beautiful Soup for parsing HTML responses.
 - Requests library to handle HTTP requests.
@@ -43,7 +43,7 @@ scorecards and grades in an efficient and user-friendly way.
 ### Prerequisites
 
 Before you can run QISsy, ensure you have the following installed:
-- Python 3.7 or higher
+- Python 3.9 or higher
 - pip (Python package installer)
 
 ### Setup a Virtual Environment (Recommended)
