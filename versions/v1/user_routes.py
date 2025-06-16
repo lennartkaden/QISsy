@@ -231,7 +231,7 @@ async def get_scorecard(scorecard_id: str,
     * HTTP exceptions are raised.
 
     If the response is successful, the scorecard HTML is parsed and converted into a structured format using the
-    `parse_scorecard` method. The parsed scorecard is then checked for validity
+    `parse_scores` method. The parsed scorecard is then checked for validity
     *. If it is valid, the grade point average is calculated using the `get_grade_point_average` method.
 
     Finally, the retrieved scorecard, grade point average, and a success message are returned as a `Scorecard` object.
