@@ -4,7 +4,7 @@ Main file for QISsy FastAPI Application
 from fastapi import FastAPI
 from fastapi_versioning import VersionedFastAPI
 
-__version__ = "0.1.0-devpreview.1"
+__version__ = "v1.0"
 
 from versions.v1.user_routes import router as v1_router
 
