@@ -12,11 +12,10 @@ base_app = FastAPI(title="QISsy", description="A simple API to access the QIS se
 
 base_app.include_router(v1_router)
 
-app = VersionedFastAPI(app=base_app, enable_latest=True, prefix_format="/v{major}.{minor}",
-                       version_format="{major}.{minor}")
-
-
-@app.get("/info")
+@base_app.get("/info")
 async def info():
     """Return information about this QISsy instance."""
     return {"name": "QISsy", "version": __version__}
+
+app = VersionedFastAPI(app=base_app, enable_latest=True, prefix_format="/v{major}.{minor}",
+                       version_format="{major}.{minor}")
