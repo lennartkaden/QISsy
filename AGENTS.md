@@ -9,17 +9,19 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
 - Die Konfiguration wird aus einer `config.json` gelesen. Eine Vorlage
   befindet sich in `config_example.json`. **Keine sensiblen Konfigurationsdaten
   einchecken.**
-- Logging erfolgt über das in `logging_config.py` definierte `logger`‑Objekt.
+- Logging erfolgt über das in `app/core/logging.py` definierte `logger`‑Objekt.
   Verwende `logger` statt `print`.
 - Tests befinden sich im Verzeichnis `tests/` und werden mit `pytest` ausgeführt.
-- Neue API‑Routen liegen im entsprechenden Versionsordner unter `versions/`.
+- Neue API‑Routen liegen im entsprechenden Versionsordner unter `app/api/`.
+- Vor jeder neuen Entwicklung muss das Dokument `ARCHITECTURE.md` gelesen
+  und die dort beschriebenen Vorgaben berücksichtigt werden.
 
 ## Richtlinien für Beiträge
 
 1. **Logging benutzen**
    - Verwende für Ausgaben stets das `logging`‑Modul. Beispiel:
      ```python
-     from logging_config import logger
+     from app.core.logging import logger
      logger.info("Nachricht")
      ```
 2. **Unit‑Tests schreiben**
@@ -33,7 +35,7 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
      Docstring‑Beschreibung.
 4. **Versionierung der API**
    - Erweiterungen der API erfolgen in den vorhandenen Versionsordnern, z.B.
-     `versions/v1/`. Ändere die Versionsnummer nur, wenn eine inkompatible
+     `app/api/v1/`. Ändere die Versionsnummer nur, wenn eine inkompatible
      Änderung notwendig ist.
 5. **Dokumentation aktualisieren**
    - Bei neuen Features muss die `README.md` ergänzt werden.

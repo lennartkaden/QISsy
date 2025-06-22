@@ -91,7 +91,7 @@ cp config_example.json config.json
 To run the QISsy FastAPI app, execute:
 
 ```sh
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 
 After running this command, visit the URL `http://127.0.0.1:8000/v1.0/docs` on your web browser. 
@@ -119,8 +119,8 @@ once the server is running.
 
 The source code is structured as follows:
 
-- `main.py` - Contains the FastAPI application instantiation and setup.
-- `versions/v1/` - Contains all the versioned API routes, utility functions, and Pydantic models for data validation.
+- `app/main.py` - Contains the FastAPI application instantiation and setup.
+- `app/api/v1/` - Contains all the versioned API routes, utility functions, and Pydantic models for data validation.
 
 To contribute to the project, follow these steps:
 
@@ -133,6 +133,13 @@ To contribute to the project, follow these steps:
 7. Wait for the pull request to be reviewed and merged.
 
 Please maintain the code quality standards of the project and adhere to PEP8 style guidelines.
+
+## Proposed Architecture Improvements
+
+Additional suggestions for structuring the code base and handling multiple API
+versions are collected in [ARCHITECTURE.md](ARCHITECTURE.md). The document
+describes how an `app/` directory with per-version subfolders and a dedicated
+service layer could look.
 
 ## License
 
