@@ -9,14 +9,14 @@ def test_get_config_value_success(tmp_path, monkeypatch):
     config_file = tmp_path / 'config.json'
     config_file.write_text(json.dumps(cfg))
     monkeypatch.chdir(tmp_path)
-    config = importlib.import_module('config')
+    config = importlib.import_module('app.core.config')
     importlib.reload(config)
     assert config.get_config_value('QIS/BASE_URL') == 'http://x'
 
 
 def test_get_config_value_missing_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    config = importlib.import_module('config')
+    config = importlib.import_module('app.core.config')
     importlib.reload(config)
     with pytest.raises(FileNotFoundError):
         config.get_config_value('QIS/BASE_URL')
@@ -27,7 +27,7 @@ def test_get_config_value_key_error(tmp_path, monkeypatch):
     config_file = tmp_path / 'config.json'
     config_file.write_text(json.dumps(cfg))
     monkeypatch.chdir(tmp_path)
-    config = importlib.import_module('config')
+    config = importlib.import_module('app.core.config')
     importlib.reload(config)
     with pytest.raises(KeyError):
         config.get_config_value('QIS/BASE_URL')

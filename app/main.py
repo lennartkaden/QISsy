@@ -6,7 +6,7 @@ from fastapi_versioning import VersionedFastAPI
 
 __version__ = "v1.0"
 
-from versions.v1.user_routes import router as v1_router
+from app.api.v1.user_routes import router as v1_router
 
 
 def create_app() -> FastAPI:

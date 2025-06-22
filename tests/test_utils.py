@@ -20,7 +20,7 @@ def create_config(tmp_path, monkeypatch):
 
 
 def test_parse_asi_parameter():
-    from versions.v1 import utils
+    from app.api.v1 import utils
     importlib.reload(utils)
     html = '<a href="page?asi=ABC123">Notenspiegel / Studienverlauf</a>'
     assert utils.parse_asi_parameter(html) == 'ABC123'
@@ -28,14 +28,14 @@ def test_parse_asi_parameter():
 
 def test_parse_asi_parameter_missing_link():
     """Return None if the link is missing."""
-    from versions.v1 import utils
+    from app.api.v1 import utils
     importlib.reload(utils)
     html = '<a href="page?asi=ABC123">Wrong link</a>'
     assert utils.parse_asi_parameter(html) is None
 
 
 def test_parse_user_display_name():
-    from versions.v1 import utils
+    from app.api.v1 import utils
     importlib.reload(utils)
     spans = ''.join('<span></span>' for _ in range(8))
     html = f'<div class="divloginstatus">{spans}Test User</div>'
@@ -43,27 +43,27 @@ def test_parse_user_display_name():
 
 
 def test_parse_scorecard_ids():
-    from versions.v1 import utils
+    from app.api.v1 import utils
     importlib.reload(utils)
     html = '<a title="Leistungen" href="page?nodeID=NODE1">Name</a>'
     assert utils.parse_scorecard_ids(html) == {'Name': 'NODE1'}
 
 
 def test_parse_float_int_status():
-    from versions.v1 import utils
+    from app.api.v1 import utils
     importlib.reload(utils)
     assert utils._parse_float('1,3') == 1.3
     assert utils._parse_float('') is None
     assert utils._parse_int('10') == 10
     assert utils._parse_int('') is None
-    from versions.v1.models import ScoreStatus
+    from app.api.v1.models import ScoreStatus
     assert utils._parse_status('bestanden') == ScoreStatus.PASSED
     assert utils._parse_status('') is None
 
 
 def test_get_grade_point_average():
-    from versions.v1 import utils
-    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
+    from app.api.v1 import utils
+    from app.api.v1.models import Module, Score, ScoreStatus, ScoreType
     importlib.reload(utils)
     module = Module(
         id=1,
@@ -82,8 +82,8 @@ def test_get_grade_point_average():
 
 
 def test_get_credit_point_sum():
-    from versions.v1 import utils
-    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
+    from app.api.v1 import utils
+    from app.api.v1.models import Module, Score, ScoreStatus, ScoreType
     importlib.reload(utils)
     module = Module(
         id=1,
@@ -103,8 +103,8 @@ def test_get_credit_point_sum():
     assert credit_sum == 5
 
 def test_parse_scores(monkeypatch):
-    from versions.v1 import utils
-    from versions.v1.models import TableRow, RowType
+    from app.api.v1 import utils
+    from app.api.v1.models import TableRow, RowType
     importlib.reload(utils)
 
     rows = [

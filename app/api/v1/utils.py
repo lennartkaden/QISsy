@@ -6,9 +6,9 @@ import requests
 from bs4 import NavigableString, BeautifulSoup, Comment
 from fastapi import HTTPException
 
-from logging_config import logger
+from app.core.logging import logger
 
-from config import get_config_value
+from app.core.config import get_config_value
 from .models import Module, ScoreStatus, Score, ScoreType, TableRow, RowType
 
 BASE_URL = get_config_value("QIS/BASE_URL")

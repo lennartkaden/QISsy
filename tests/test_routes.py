@@ -13,10 +13,10 @@ def config_and_client(tmp_path):
     config_file = Path('config.json')
     config_file.write_text(json.dumps(cfg))
 
-    import config as cfg_module
-    import versions.v1.utils as utils
-    import versions.v1.user_routes as routes
-    import main
+    from app.core import config as cfg_module
+    import app.api.v1.utils as utils
+    import app.api.v1.user_routes as routes
+    import app.main as main
 
     importlib.reload(cfg_module)
     importlib.reload(utils)
@@ -31,7 +31,7 @@ def config_and_client(tmp_path):
 @responses.activate
 def test_signin_success(config_and_client):
     client = config_and_client
-    from versions.v1.user_routes import SIGNIN_URL, STUDY_POS_URL
+    from app.api.v1.user_routes import SIGNIN_URL, STUDY_POS_URL
     login_html = '<div class="divloginstatus">' + ''.join('<span></span>' for _ in range(8)) + 'User</div>'
     responses.add(responses.POST, SIGNIN_URL, body=login_html, status=200,
                   headers={'Set-Cookie': 'JSESSIONID=ABC; Path=/; HttpOnly'})
@@ -52,7 +52,7 @@ def test_signin_success(config_and_client):
 @responses.activate
 def test_check_session_validity(config_and_client):
     client = config_and_client
-    from versions.v1.user_routes import SERVICE_BASE_URL
+    from app.api.v1.user_routes import SERVICE_BASE_URL
     check_url = f"{SERVICE_BASE_URL}?state=user&type=0&application=lsf"
     responses.add(responses.GET, check_url, body='OK', status=200)
     resp = client.get('/v1.0/check_session', headers={'session-cookie': 'ABC'})
@@ -63,7 +63,7 @@ def test_check_session_validity(config_and_client):
 @responses.activate
 def test_check_session_invalid(config_and_client):
     client = config_and_client
-    from versions.v1.user_routes import SERVICE_BASE_URL
+    from app.api.v1.user_routes import SERVICE_BASE_URL
     check_url = f"{SERVICE_BASE_URL}?state=user&type=0&application=lsf"
     responses.add(responses.GET, check_url, body='<html>Passwort</html>', status=200)
     resp = client.get('/v1.0/check_session', headers={'session-cookie': 'ABC'})
@@ -74,8 +74,8 @@ def test_check_session_invalid(config_and_client):
 @responses.activate
 def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     client = config_and_client
-    import versions.v1.user_routes as routes
-    from versions.v1.user_routes import SERVICE_BASE_URL
+    import app.api.v1.user_routes as routes
+    from app.api.v1.user_routes import SERVICE_BASE_URL
 
     async def dummy_validate(_):
         return None
@@ -100,7 +100,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
 
 def test_info_endpoint(config_and_client):
     client = config_and_client
-    import main
+    import app.main as main
     resp = client.get('/info')
     assert resp.status_code == 200
     data = resp.json()
