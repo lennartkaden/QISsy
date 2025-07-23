@@ -80,11 +80,15 @@ cd QISsy
 pip install -r requirements.txt
 ```
 
-3. Copy the example config to a new file and fill in your qis server url.
+3. Copy the example config to a new file and fill in your QIS server URL.
 
 ```sh
 cp config_example.json config.json
 ```
+
+If `config.json` is missing at runtime, QISsy will try to read the values from
+environment variables. Set `QIS_BASE_URL` and `QIS_SERVICE_PATH` to the
+appropriate values when running without a configuration file.
 
 ### Running the APP
 

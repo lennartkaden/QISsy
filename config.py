@@ -1,4 +1,5 @@
 import json
+import os
 
 
 def get_config_value(config_key: str) -> str:
@@ -15,12 +16,18 @@ def get_config_value(config_key: str) -> str:
     References: config_example.json
 
     """
+    env_var = "_".join(config_key.split("/")).upper()
     try:
         with open('config.json', 'r') as f:
             settings = json.load(f)
     except FileNotFoundError:
-        raise FileNotFoundError("The config.json file was not found. Please create a config.json file in the "
-                                "root directory of the project.")
+        env_value = os.getenv(env_var)
+        if env_value is not None:
+            return env_value
+        raise FileNotFoundError(
+            "The config.json file was not found and environment variable "
+            f"{env_var} is not set."
+        )
 
     keys = config_key.split('/')
     value = settings
@@ -29,7 +36,12 @@ def get_config_value(config_key: str) -> str:
         for key in keys:
             value = value[key]
     except KeyError:
-        raise KeyError(f"The setting {config_key} was not found in the config.json file. "
-                       "Please add the setting to the config.json file.")
+        env_value = os.getenv(env_var)
+        if env_value is not None:
+            return env_value
+        raise KeyError(
+            f"The setting {config_key} was not found in the config.json file and "
+            f"environment variable {env_var} is not set."
+        )
 
     return value
