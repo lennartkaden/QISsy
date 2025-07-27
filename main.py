@@ -2,6 +2,7 @@
 Main file for QISsy FastAPI Application
 """
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from fastapi_versioning import VersionedFastAPI
 
 __version__ = "v1.0"
@@ -35,3 +36,9 @@ app = create_app()
 async def info() -> dict[str, str]:
     """Return information about this QISsy instance."""
     return {"name": "QISsy", "version": __version__}
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt() -> PlainTextResponse:
+    """Disallow all web crawlers."""
+    return PlainTextResponse("User-agent: *\nDisallow: /")

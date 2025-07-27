@@ -106,3 +106,10 @@ def test_info_endpoint(config_and_client):
     data = resp.json()
     assert data['name'] == 'QISsy'
     assert data['version'] == main.__version__
+
+
+def test_robots_txt(config_and_client):
+    client = config_and_client
+    resp = client.get('/robots.txt')
+    assert resp.status_code == 200
+    assert resp.text == "User-agent: *\nDisallow: /"
