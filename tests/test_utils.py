@@ -102,6 +102,36 @@ def test_get_credit_point_sum():
     credit_sum = utils.get_credit_point_sum({'Cat': [module]})
     assert credit_sum == 5
 
+
+def test_get_credit_point_sum_includes_ungraded_modules():
+    from versions.v1 import utils
+    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
+    importlib.reload(utils)
+    module = Module(
+        id=2,
+        title='Mod2',
+        semester='WS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=3,
+        issued_on='date',
+        scores=[
+            Score(
+                id=2,
+                title='Score2',
+                type=ScoreType.PL,
+                semester='WS',
+                grade=None,
+                status=ScoreStatus.PASSED,
+                issued_on='date',
+                attempt=1,
+                specific_scorecard_id=None,
+            )
+        ],
+    )
+    credit_sum = utils.get_credit_point_sum({'Cat': [module]})
+    assert credit_sum == 3
+
 def test_parse_scores(monkeypatch):
     from versions.v1 import utils
     from versions.v1.models import TableRow, RowType
