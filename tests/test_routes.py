@@ -76,14 +76,62 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     client = config_and_client
     import versions.v1.user_routes as routes
     from versions.v1.user_routes import SERVICE_BASE_URL
+    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
 
     async def dummy_validate(_):
         return None
 
+    module1 = Module(
+        id=1,
+        title='Mod1',
+        semester='WS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=5,
+        issued_on='date',
+        scores=[
+            Score(
+                id=11,
+                title='Score1',
+                type=ScoreType.PL,
+                semester='WS',
+                grade=1.0,
+                status=ScoreStatus.PASSED,
+                issued_on='date',
+                attempt=1,
+                specific_scorecard_id=None,
+            )
+        ],
+    )
+    module2 = Module(
+        id=2,
+        title='Mod2',
+        semester='SS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=10,
+        issued_on='date',
+        scores=[
+            Score(
+                id=22,
+                title='Score2',
+                type=ScoreType.PL,
+                semester='SS',
+                grade=None,
+                status=ScoreStatus.PASSED,
+                issued_on='date',
+                attempt=1,
+                specific_scorecard_id=None,
+            )
+        ],
+    )
+
+    def dummy_parse_scores(_):
+        return {'Cat': [module1, module2]}
+
     monkeypatch.setattr(routes, 'validate_session_or_raise', dummy_validate)
-    monkeypatch.setattr(routes, 'parse_scores', lambda html: {'Cat': []})
+    monkeypatch.setattr(routes, 'parse_scores', dummy_parse_scores)
     monkeypatch.setattr(routes, 'get_grade_point_average', lambda scores: 1.0)
-    monkeypatch.setattr(routes, 'get_credit_point_sum', lambda scores: 30)
 
     url = (
         f"{SERVICE_BASE_URL}?state=notenspiegelStudent&menu_open=n&next=list.vm&nextdir=qispos/notenspiegel/student"
@@ -95,7 +143,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data['grade_point_average'] == 1.0
-    assert data['credit_point_sum'] == 30
+    assert data['credit_point_sum'] == 15
 
 
 def test_info_endpoint(config_and_client):
