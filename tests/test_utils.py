@@ -81,6 +81,44 @@ def test_get_grade_point_average():
     assert gpa == 1.0
 
 
+def test_get_grade_point_average_progress():
+    from versions.v1 import utils
+    from versions.v1.models import Module, Score, ScoreStatus, ScoreType
+    importlib.reload(utils)
+
+    module1 = Module(
+        id=1,
+        title='Mod1',
+        semester='WS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=5,
+        issued_on='01.01.2020',
+        scores=[
+            Score(id=11, title='Score1', type=ScoreType.PL, semester='WS', grade=1.0,
+                  status=ScoreStatus.PASSED, issued_on='01.01.2020', attempt=1, specific_scorecard_id=None)
+        ]
+    )
+    module2 = Module(
+        id=2,
+        title='Mod2',
+        semester='WS',
+        grade=None,
+        status=ScoreStatus.PASSED,
+        credits=5,
+        issued_on='10.02.2020',
+        scores=[
+            Score(id=22, title='Score2', type=ScoreType.PL, semester='WS', grade=2.0,
+                  status=ScoreStatus.PASSED, issued_on='10.02.2020', attempt=1, specific_scorecard_id=None)
+        ]
+    )
+
+    progress = utils.get_grade_point_average_progress({'Cat': [module1, module2]})
+    assert len(progress) == 2
+    assert progress[0].grade_point_average == 1.0
+    assert progress[1].grade_point_average == 1.5
+
+
 def test_get_credit_point_sum():
     from versions.v1 import utils
     from versions.v1.models import Module, Score, ScoreStatus, ScoreType

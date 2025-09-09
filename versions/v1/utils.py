@@ -1,5 +1,6 @@
 from typing import Dict, Optional, List
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime
 
 import bs4
 import requests
@@ -9,7 +10,7 @@ from fastapi import HTTPException
 from logging_config import logger
 
 from config import get_config_value
-from .models import Module, ScoreStatus, Score, ScoreType, TableRow, RowType
+from .models import Module, ScoreStatus, Score, ScoreType, TableRow, RowType, GradePointAverageProgressItem
 
 BASE_URL = get_config_value("QIS/BASE_URL")
 SERVICE_PATH = get_config_value("QIS/SERVICE_PATH")
@@ -340,6 +341,61 @@ def get_grade_point_average(scorecard: Dict[str, List[Module]]) -> Optional[floa
         return None
 
     return round(grade_point_average, 2)
+
+
+def get_grade_point_average_progress(scorecard: Dict[str, List[Module]]) -> List[GradePointAverageProgressItem]:
+    """Return GPA progress over time.
+
+    Generates a list of data points consisting of the module ID, the
+    resulting grade point average at that time and the date of the module
+    grade. The calculation follows the same weighting logic as
+    :func:`get_grade_point_average`.
+
+    :param scorecard: The scorecard to parse.
+    :return: List of :class:`GradePointAverageProgressItem` objects ordered
+        chronologically.
+    """
+    entries: List[dict] = []
+
+    for modules in scorecard.values():
+        for module in modules:
+            for score in module.scores:
+                if score.grade is None or module.credits is None:
+                    continue
+                try:
+                    date_obj = datetime.strptime(score.issued_on, "%d.%m.%Y")
+                except Exception:
+                    logger.exception("Failed to parse date for module %s", module.id)
+                    continue
+                entries.append({
+                    "module_id": module.id,
+                    "grade": score.grade,
+                    "credits": module.credits,
+                    "date": date_obj,
+                })
+
+    # sort entries by date ascending
+    entries.sort(key=lambda item: item["date"])
+
+    progress: List[GradePointAverageProgressItem] = []
+    total_weighted = 0.0
+    total_credits = 0
+
+    for entry in entries:
+        total_weighted += entry["grade"] * entry["credits"]
+        total_credits += entry["credits"]
+        if total_credits == 0:
+            continue
+        gpa = round(total_weighted / total_credits, 2)
+        progress.append(
+            GradePointAverageProgressItem(
+                module_id=entry["module_id"],
+                grade_point_average=gpa,
+                date=entry["date"].strftime("%d.%m.%Y"),
+            )
+        )
+
+    return progress
 
 
 def get_credit_point_sum(scorecard: Dict[str, List[Module]]) -> int:

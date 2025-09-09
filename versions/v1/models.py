@@ -121,6 +121,15 @@ class Module(BaseModel):
     }]])
 
 
+class GradePointAverageProgressItem(BaseModel):
+    """Model to represent a grade point average data point."""
+
+    module_id: int = Field(..., examples=[1], description="ID of the module that updated the GPA")
+    grade_point_average: float = Field(
+        ..., examples=[1.0], description="The grade point average after this module")
+    date: str = Field(..., examples=["01.01.2020"], description="The date of the module grade")
+
+
 class Scorecard(BaseModel):
     """
     Model to represent a scorecard.
@@ -128,6 +137,11 @@ class Scorecard(BaseModel):
     scores: dict[str, List[Module]] # Category name as key and list of Module as value
     grade_point_average: Optional[float] = Field(None, examples=[1.3], description="The grade point average")
     credit_point_sum: Optional[int] = Field(None, examples=[180], description="The sum of credit points")
+    grade_point_average_progress: Optional[List[GradePointAverageProgressItem]] = Field(
+        None,
+        description="List of GPA data points over time",
+        examples=[[{"module_id": 1, "grade_point_average": 1.0, "date": "01.01.2020"}]],
+    )
     message: str = Field(..., examples=["Successfully retrieved scorecard"],
                          description="A message indicating if the request was successful or not")
 
