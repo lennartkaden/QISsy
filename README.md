@@ -114,6 +114,9 @@ This API comes with a set of versioned endpoints that serve different functional
 - GET `/v1.0/scorecard_ids` - Retrieves the identifiers of available scorecards for the user.
 - GET `/v1.0/scorecard` - Fetches a particular scorecard using its identifier.
 
+  The response contains the current grade point average, the total credit
+  sum and a timeline of how the grade point average evolved over time.
+
 Each endpoint requires specific input parameters and returns respective responses which are documented in detail using 
 Pydantic models and can be viewed on the Swagger/OpenAPI documentation available at `http://127.0.0.1:8000/v1.0/redoc`
 once the server is running.

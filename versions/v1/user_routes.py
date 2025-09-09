@@ -6,8 +6,18 @@ from fastapi import HTTPException, Header
 from fastapi_versioning import version
 
 from .models import ErrorResponse, UserCredentials, UserSignInDetails, SessionStatus, ScorecardIDs, Scorecard, Module
-from .utils import SERVICE_BASE_URL, parse_asi_parameter, parse_user_display_name, _session_is_valid, \
-    parse_scorecard_ids, parse_scores, validate_session_or_raise, get_grade_point_average, get_credit_point_sum
+from .utils import (
+    SERVICE_BASE_URL,
+    parse_asi_parameter,
+    parse_user_display_name,
+    _session_is_valid,
+    parse_scorecard_ids,
+    parse_scores,
+    validate_session_or_raise,
+    get_grade_point_average,
+    get_grade_point_average_progress,
+    get_credit_point_sum,
+)
 
 router = APIRouter()
 
@@ -281,9 +291,11 @@ async def get_scorecard(
 
     grade_point_average = get_grade_point_average(scores)
     credit_point_sum = get_credit_point_sum(scores)
+    grade_point_average_progress = get_grade_point_average_progress(scores)
 
     # Return the scorecard.
     return Scorecard(scores=scores,
                      grade_point_average=grade_point_average,
                      credit_point_sum=credit_point_sum,
+                     grade_point_average_progress=grade_point_average_progress,
                      message="Successfully retrieved scorecard")

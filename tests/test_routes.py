@@ -88,7 +88,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
         grade=None,
         status=ScoreStatus.PASSED,
         credits=5,
-        issued_on='date',
+        issued_on='01.01.2020',
         scores=[
             Score(
                 id=11,
@@ -97,7 +97,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
                 semester='WS',
                 grade=1.0,
                 status=ScoreStatus.PASSED,
-                issued_on='date',
+                issued_on='01.01.2020',
                 attempt=1,
                 specific_scorecard_id=None,
             )
@@ -110,7 +110,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
         grade=None,
         status=ScoreStatus.PASSED,
         credits=10,
-        issued_on='date',
+        issued_on='10.02.2020',
         scores=[
             Score(
                 id=22,
@@ -119,7 +119,7 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
                 semester='SS',
                 grade=None,
                 status=ScoreStatus.PASSED,
-                issued_on='date',
+                issued_on='10.02.2020',
                 attempt=1,
                 specific_scorecard_id=None,
             )
@@ -144,6 +144,8 @@ def test_get_scorecard_returns_credit_sum(config_and_client, monkeypatch):
     data = resp.json()
     assert data['grade_point_average'] == 1.0
     assert data['credit_point_sum'] == 15
+    assert len(data['grade_point_average_progress']) == 1
+    assert data['grade_point_average_progress'][0]['grade_point_average'] == 1.0
 
 
 def test_info_endpoint(config_and_client):
