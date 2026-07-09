@@ -1,6 +1,5 @@
 import json
 import importlib
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,9 +7,10 @@ import responses
 
 
 @pytest.fixture(autouse=True)
-def config_and_client(tmp_path):
+def config_and_client(tmp_path, monkeypatch):
     cfg = {"QIS": {"BASE_URL": "http://testserver", "SERVICE_PATH": "/service"}}
-    config_file = Path('config.json')
+    monkeypatch.chdir(tmp_path)
+    config_file = tmp_path / 'config.json'
     config_file.write_text(json.dumps(cfg))
 
     import config as cfg_module
@@ -25,7 +25,6 @@ def config_and_client(tmp_path):
 
     client = TestClient(main.app)
     yield client
-    config_file.unlink()
 
 
 @responses.activate

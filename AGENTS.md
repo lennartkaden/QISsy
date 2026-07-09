@@ -13,6 +13,10 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
   Verwende `logger` statt `print`.
 - Tests befinden sich im Verzeichnis `tests/` und werden mit `pytest` ausgeführt.
 - Neue API‑Routen liegen im entsprechenden Versionsordner unter `versions/`.
+- Die QIS‑Kürzel für Leistungsarten (`ScoreType`) und Status (`ScoreStatus`) sind
+  in `versions/v1/models.py` als Enums hinterlegt. Die vom QIS verwendeten
+  **Vermerke** (z.B. `RTE`, `LAN`, `TA`) sind dort ebenfalls als Kommentarblock
+  dokumentiert und sollen in Zukunft als eigenes Enum implementiert werden.
 
 ## Richtlinien für Beiträge
 
@@ -24,7 +28,12 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
      ```
 2. **Unit‑Tests schreiben**
    - Für neue Funktionen oder Bugfixes müssen passende Tests erstellt werden.
-   - Nutze `responses` oder `httpx` um HTTP‑Anfragen zu mocken.
+   - Nutze `responses` oder `httpx` um HTTP‑Anfragen zu mocken. **Niemals gegen
+     den echten QIS‑Server testen.**
+   - Test‑Fixtures dürfen **niemals** eine `config.json` im Projektroot anlegen
+     oder löschen (die echte Konfiguration würde überschrieben!). Stattdessen
+     `tmp_path` zusammen mit `monkeypatch.chdir(tmp_path)` verwenden, siehe
+     Fixtures in `tests/test_utils.py` und `tests/test_routes.py`.
    - Führe lokal `pytest -q` aus und stelle sicher, dass alle Tests erfolgreich
      sind, bevor du pushst.
 3. **Code‑Stil**

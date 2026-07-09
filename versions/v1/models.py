@@ -47,17 +47,59 @@ class ScoreType(str, Enum):
     """
     Enum to represent the type of score.
     """
-    PL = "PL"
-    SL = "SL"
+    BA = "BA"  # Bachelorarbeit
+    BK = "BK"  # Bonuspunktekonto
+    DA = "DA"  # Diplomarbeit
+    F = "F"    # Fach
+    FG = "FG"  # Fachgebiet
+    FP = "FP"  # Fachprüfung
+    KP = "KP"  # Kursprüfung
+    LN = "LN"  # Leistungsnachweis
+    MA = "MA"  # Masterarbeit
+    MK = "MK"  # Maluspunktekonto
+    MO = "MO"  # Modul
+    PA = "PA"  # Projektarbeit
+    PL = "PL"  # Prüfungsleistung
+    PR = "PR"  # Praktikum
+    PS = "PS"  # Präsentation
+    SA = "SA"  # Studienarbeit
+    SL = "SL"  # Studienleistung
+    SP = "SP"  # Sportart
+    TL = "TL"  # Teilleistung
+    VP = "VP"  # Vorprüfung
 
 
 class ScoreStatus(str, Enum):
     """
     Enum to represent the state of a score.
+
+    The values are the spelled-out variants of the QIS status abbreviations.
     """
-    PASSED = "bestanden"
-    FAILED = "nicht bestanden"
-    REGISTERED = "angemeldet"
+    REGISTERED = "angemeldet"                         # AN
+    PASSED = "bestanden"                              # BE
+    FAILED_PERMANENTLY = "endgültig nicht bestanden"  # EN
+    FAILED = "nicht bestanden"                        # NB
+    EXAM_ACCOUNT = "Prüfungskonto"                    # PV
+
+
+# Vermerke (notes) used by the QIS system for the "note" column.
+# They are documented here for a future implementation (e.g. as a ScoreNote enum):
+#   AAA = Amtsärztliches Attest
+#   ANA = Attest nicht anerkannt
+#   EIN = Abschlussarbeit abgegeben
+#   ENE = Ergebnis nach Ergänzungsprüfung
+#   LAA = Leistung anerkannt Ausland
+#   LAF = Leistung anerkannt (Studienfortsetzung)
+#   LAB = Leistung anerkannt berufsqualifiziert
+#   LAI = Leistung anerkannt Inland
+#   LAH = Leistung anerkannt Leibniz Universität Hannover
+#   LAN = Leistung anerkannt
+#   NIZ = nicht zugelassen
+#   RT  = Anmeldung zurückgezogen
+#   RTE = entschuldigt gefehlt
+#   RTU = unentschuldigt gefehlt
+#   TA  = Täuschung
+#   VSB = Verschobene Prüfung a.G. der Corona-Pandemie
 
 
 class Score(BaseModel):

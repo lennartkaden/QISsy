@@ -1,6 +1,5 @@
 import json
 import importlib
-from pathlib import Path
 
 import pytest
 
@@ -13,10 +12,10 @@ def create_config(tmp_path, monkeypatch):
             "SERVICE_PATH": "/service"
         }
     }
-    config_file = Path('config.json')
+    monkeypatch.chdir(tmp_path)
+    config_file = tmp_path / 'config.json'
     config_file.write_text(json.dumps(config_data))
     yield
-    config_file.unlink()
 
 
 def test_parse_asi_parameter():
@@ -59,6 +58,27 @@ def test_parse_float_int_status():
     from versions.v1.models import ScoreStatus
     assert utils._parse_status('bestanden') == ScoreStatus.PASSED
     assert utils._parse_status('') is None
+
+
+def test_score_type_contains_all_qis_abbreviations():
+    from versions.v1.models import ScoreType
+    expected = {
+        'BA', 'BK', 'DA', 'F', 'FG', 'FP', 'KP', 'LN', 'MA', 'MK',
+        'MO', 'PA', 'PL', 'PR', 'PS', 'SA', 'SL', 'SP', 'TL', 'VP',
+    }
+    assert {member.value for member in ScoreType} == expected
+
+
+def test_score_status_contains_all_qis_statuses():
+    from versions.v1.models import ScoreStatus
+    expected = {
+        'angemeldet',                  # AN
+        'bestanden',                   # BE
+        'endgültig nicht bestanden',   # EN
+        'nicht bestanden',             # NB
+        'Prüfungskonto',               # PV
+    }
+    assert {member.value for member in ScoreStatus} == expected
 
 
 def test_get_grade_point_average():
