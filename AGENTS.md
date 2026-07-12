@@ -11,6 +11,15 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
   einchecken.**
 - Logging erfolgt über das in `logging_config.py` definierte `logger`‑Objekt.
   Verwende `logger` statt `print`.
+- Die versionierten API‑Routen sind über einen API‑Key‑Schutz abgesichert
+  (`security.py`): Keys der Form `qissy_<name>_<signatur>` werden per
+  HMAC‑SHA256 aus `API/SECRET_KEY` abgeleitet und pro Request validiert
+  (Header `X-API-Key`). Einzelne Keys sperrt `API/KEY_BLACKLIST`, alle Keys
+  ein Secret‑Wechsel. Ohne gültigen Key wird abgelehnt, **bevor** eine
+  Anfrage an das QIS geht (fail closed, 503 ohne konfiguriertes Secret).
+  Keys erzeugt `generate_api_key.py`. In Test‑Fixtures den Schutz per
+  `"API": {"KEY_PROTECTION_ENABLED": false}` deaktivieren oder gültige
+  Test‑Keys senden.
 - Tests befinden sich im Verzeichnis `tests/` und werden mit `pytest` ausgeführt.
 - Neue API‑Routen liegen im entsprechenden Versionsordner unter `versions/`.
 - Die QIS‑Kürzel für Leistungsarten (`ScoreType`) und Status (`ScoreStatus`) sind

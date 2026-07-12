@@ -25,6 +25,7 @@ scorecards and grades in an efficient and user-friendly way.
 ### Features
 
 - User Authentication
+- Optional API key protection for private deployments (HMAC-derived keys with blacklist support)
 - Session Validity Checks
 - Retrieval of Scorecard Identifiers
 - Retrieval of Full Scorecards including detailed grades, grade point average and credit point sum
@@ -100,6 +101,59 @@ After running this command, visit the URL `http://127.0.0.1:8000/v1.0/docs` on y
 You should see the automatic interactive API documentation provided by FastAPI, which you can use to test the API 
 endpoints.
 
+## API Key Protection
+
+QISsy can require an API key on all versioned endpoints (`/v1.0/...`). This is
+meant for small private deployments: the operator hands each friend an
+individual key. Without a valid key, QISsy rejects the request **before** any
+request is sent to the QIS server, so the signin endpoint cannot be abused to
+spam the university's QIS.
+
+Keys are stateless: each key is derived from the operator's secret via
+HMAC-SHA256 and validated on the fly. Nothing is stored on the server.
+
+### Setup
+
+1. Generate a secret and put it into `config.json`:
+
+   ```sh
+   python generate_api_key.py --new-secret
+   ```
+
+   ```json
+   "API": {
+     "SECRET_KEY": "<the generated secret>",
+     "KEY_PROTECTION_ENABLED": true,
+     "KEY_BLACKLIST": []
+   }
+   ```
+
+2. Generate a key for each friend and share it with them:
+
+   ```sh
+   python generate_api_key.py alice
+   # qissy_alice_3f9d2c…
+   ```
+
+3. Clients send the key in the `X-API-Key` header on every request.
+
+Protection is **enabled by default**. To run QISsy without API keys, set
+`KEY_PROTECTION_ENABLED` to `false`. If protection is enabled but no
+`SECRET_KEY` is configured, QISsy fails closed and rejects all requests
+with `503`.
+
+### Revoking access
+
+- **Revoke one key:** add its name to `KEY_BLACKLIST`, e.g. `["alice"]`.
+  The change takes effect immediately (the config is re-read per request);
+  blacklisted keys receive `403`.
+- **Revoke all keys:** replace `SECRET_KEY` with a new secret. All previously
+  issued keys become invalid instantly and receive `401`.
+
+Environment variable fallbacks (used when `config.json` is missing or lacks
+the key): `API_SECRET_KEY`, `API_KEY_PROTECTION_ENABLED`,
+`API_KEY_BLACKLIST` (comma separated, e.g. `alice,bob`).
+
 ## Usage
 
 This API comes with a set of versioned endpoints that serve different functionalities. The current version is `v1.0`.
@@ -116,6 +170,10 @@ This API comes with a set of versioned endpoints that serve different functional
 
   The response contains the current grade point average, the total credit
   sum and a timeline of how the grade point average evolved over time.
+
+All `/v1.0/...` endpoints require the `X-API-Key` header when API key
+protection is enabled (the default). `/info` and `/robots.txt` are always
+public.
 
 Each endpoint requires specific input parameters and returns respective responses which are documented in detail using 
 Pydantic models and can be viewed on the Swagger/OpenAPI documentation available at `http://127.0.0.1:8000/v1.0/redoc`
