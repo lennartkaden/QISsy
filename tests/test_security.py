@@ -128,3 +128,114 @@ def test_blacklist_from_json_list(tmp_path):
 def test_blacklist_from_env_string(monkeypatch):
     monkeypatch.setenv("API_KEY_BLACKLIST", "mallory, eve")
     assert security.get_api_key_blacklist() == ["mallory", "eve"]
+
+
+# --- endpoint integration ---------------------------------------------------
+
+import importlib
+
+import responses
+from fastapi.testclient import TestClient
+
+
+def make_client(tmp_path, api_section):
+    """Build a TestClient against a temp config; cwd is already tmp_path."""
+    write_config(tmp_path, api_section)
+
+    import config as cfg_module
+    import versions.v1.utils as utils
+    import versions.v1.user_routes as routes
+    import main
+
+    importlib.reload(cfg_module)
+    importlib.reload(utils)
+    importlib.reload(routes)
+    importlib.reload(main)
+    return TestClient(main.app)
+
+
+CHECK_SESSION_URL = "http://testserver/service?state=user&type=0&application=lsf"
+
+
+@responses.activate
+def test_missing_api_key_is_rejected_without_outbound_request(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    resp = client.post("/v1.0/signin", json={"username": "u", "password": "p"})
+    assert resp.status_code == 401
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+def test_invalid_api_key_is_rejected_without_outbound_request(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", "some-other-secret")
+    resp = client.get("/v1.0/check_session",
+                      headers={"session-cookie": "ABC", "X-API-Key": key})
+    assert resp.status_code == 401
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+def test_blacklisted_api_key_is_rejected_without_outbound_request(tmp_path):
+    client = make_client(
+        tmp_path,
+        {"SECRET_KEY": TEST_SECRET, "KEY_BLACKLIST": ["mallory"]},
+    )
+    key = security.generate_api_key("mallory", TEST_SECRET)
+    resp = client.get("/v1.0/check_session",
+                      headers={"session-cookie": "ABC", "X-API-Key": key})
+    assert resp.status_code == 403
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+def test_missing_secret_fails_closed(tmp_path):
+    client = make_client(tmp_path, None)  # protection defaults to on, no secret
+    resp = client.get("/v1.0/check_session",
+                      headers={"session-cookie": "ABC", "X-API-Key": "qissy_a_b"})
+    assert resp.status_code == 503
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+def test_valid_api_key_reaches_endpoint(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    responses.add(responses.GET, CHECK_SESSION_URL, body="OK", status=200)
+    key = security.generate_api_key("alice", TEST_SECRET)
+    resp = client.get("/v1.0/check_session",
+                      headers={"session-cookie": "ABC", "X-API-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is True
+
+
+@responses.activate
+def test_disabled_protection_allows_requests_without_key(tmp_path):
+    client = make_client(tmp_path, {"KEY_PROTECTION_ENABLED": False})
+    responses.add(responses.GET, CHECK_SESSION_URL, body="OK", status=200)
+    resp = client.get("/v1.0/check_session", headers={"session-cookie": "ABC"})
+    assert resp.status_code == 200
+
+
+def test_info_and_robots_remain_open(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    assert client.get("/info").status_code == 200
+    assert client.get("/robots.txt").status_code == 200
+
+
+@responses.activate
+def test_malformed_config_fails_closed(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", TEST_SECRET)
+    (tmp_path / "config.json").write_text("{not json")
+    resp = client.get("/v1.0/check_session",
+                      headers={"session-cookie": "ABC", "X-API-Key": key})
+    assert resp.status_code == 503
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+def test_latest_alias_is_protected(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    resp = client.get("/latest/check_session", headers={"session-cookie": "ABC"})
+    assert resp.status_code == 401
+    assert len(responses.calls) == 0

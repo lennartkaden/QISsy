@@ -12,7 +12,12 @@ import hmac
 import re
 from typing import List, Optional, Tuple
 
+from fastapi import HTTPException
+from fastapi.security import APIKeyHeader
+from fastapi import Security
+
 from config import get_config_value
+from logging_config import logger
 
 API_KEY_PREFIX = "qissy"
 _NAME_PATTERN = re.compile(r"^[a-z0-9-]+$")
@@ -108,7 +113,7 @@ def get_api_secret_key() -> Optional[str]:
     """
     try:
         value = get_config_value("API/SECRET_KEY")
-    except (FileNotFoundError, KeyError):
+    except (FileNotFoundError, KeyError, ValueError):
         return None
     secret = str(value).strip()
     return secret or None
@@ -123,7 +128,7 @@ def is_api_key_protection_enabled() -> bool:
     """
     try:
         value = get_config_value("API/KEY_PROTECTION_ENABLED")
-    except (FileNotFoundError, KeyError):
+    except (FileNotFoundError, KeyError, ValueError):
         return True
     if isinstance(value, bool):
         return value
@@ -140,10 +145,63 @@ def get_api_key_blacklist() -> List[str]:
     """
     try:
         value = get_config_value("API/KEY_BLACKLIST")
-    except (FileNotFoundError, KeyError):
+    except (FileNotFoundError, KeyError, ValueError):
         return []
     if isinstance(value, str):
         names = value.split(",")
     else:
         names = value
     return [str(name).strip().lower() for name in names if str(name).strip()]
+
+
+_api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    scheme_name="APIKeyHeader",
+    description="API key of the form qissy_<name>_<signature>, "
+                "issued by the server operator.",
+)
+
+
+async def require_api_key(
+    api_key: Optional[str] = Security(_api_key_header),
+) -> Optional[str]:
+    """
+    FastAPI dependency that enforces API key protection.
+
+    Runs before any endpoint code, so no request is ever forwarded to the
+    QIS server unless the caller presented a valid, non-blacklisted key.
+
+    Returns: The key name of the caller, or ``None`` when protection is
+             disabled via ``API/KEY_PROTECTION_ENABLED``.
+
+    Raises:
+        HTTPException: 503 when protection is on but no secret is configured
+                       (fail closed), 401 for missing or invalid keys and
+                       403 for blacklisted keys.
+    """
+    if not is_api_key_protection_enabled():
+        return None
+
+    secret = get_api_secret_key()
+    if secret is None:
+        logger.error(
+            "API key protection is enabled but API/SECRET_KEY is not "
+            "configured; rejecting request (fail closed)"
+        )
+        raise HTTPException(status_code=503, detail="API key protection is misconfigured")
+
+    if api_key is None:
+        logger.warning("Rejected request without API key")
+        raise HTTPException(status_code=401, detail="Missing API key")
+
+    name = verify_api_key(api_key, secret)
+    if name is None:
+        logger.warning("Rejected request with invalid API key")
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    if name in get_api_key_blacklist():
+        logger.warning("Rejected request with blacklisted API key name '%s'", name)
+        raise HTTPException(status_code=403, detail="API key has been revoked")
+
+    return name
