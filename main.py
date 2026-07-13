@@ -7,7 +7,7 @@ from fastapi_versioning import VersionedFastAPI
 
 __version__ = "v1.0"
 
-from security import require_api_key
+from security import is_api_key_protection_enabled, require_api_key
 from versions.v1.user_routes import router as v1_router
 
 
@@ -34,9 +34,19 @@ app = create_app()
 
 
 @app.get("/info")
-async def info() -> dict[str, str]:
-    """Return information about this QISsy instance."""
-    return {"name": "QISsy", "version": __version__}
+async def info() -> dict:
+    """
+    Return information about this QISsy instance.
+
+    ``api_key_required`` tells clients whether requests to the versioned
+    endpoints must carry an ``X-API-Key`` header, so apps can prompt the
+    user for a key before signing in.
+    """
+    return {
+        "name": "QISsy",
+        "version": __version__,
+        "api_key_required": is_api_key_protection_enabled(),
+    }
 
 
 @app.get("/robots.txt", include_in_schema=False)

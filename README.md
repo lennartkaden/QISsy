@@ -137,6 +137,10 @@ HMAC-SHA256 and validated on the fly. Nothing is stored on the server.
 
 3. Clients send the key in the `X-API-Key` header on every request.
 
+Apps can check the public `/info` endpoint first: its `api_key_required`
+field tells them whether this instance expects an API key, so they can
+prompt the user for one before signing in.
+
 Protection is **enabled by default**. To run QISsy without API keys, set
 `KEY_PROTECTION_ENABLED` to `false`. If protection is enabled but no
 `SECRET_KEY` is configured, QISsy fails closed and rejects all requests
@@ -160,7 +164,9 @@ This API comes with a set of versioned endpoints that serve different functional
 
 ### Endpoints summary:
 
-- GET `/info` - Provides information about the running QISsy instance.
+- GET `/info` - Provides information about the running QISsy instance,
+  including `api_key_required`, which tells clients whether the versioned
+  endpoints expect an `X-API-Key` header.
 - GET `/robots.txt` - Disallows all web crawlers.
 
 - POST `/v1.0/signin` - Authenticates the user using provided credentials.

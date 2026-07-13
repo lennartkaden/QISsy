@@ -239,3 +239,15 @@ def test_latest_alias_is_protected(tmp_path):
     resp = client.get("/latest/check_session", headers={"session-cookie": "ABC"})
     assert resp.status_code == 401
     assert len(responses.calls) == 0
+
+
+def test_info_reports_api_key_requirement(tmp_path):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    data = client.get("/info").json()
+    assert data["api_key_required"] is True
+
+
+def test_info_reports_api_key_not_required_when_disabled(tmp_path):
+    client = make_client(tmp_path, {"KEY_PROTECTION_ENABLED": False})
+    data = client.get("/info").json()
+    assert data["api_key_required"] is False
