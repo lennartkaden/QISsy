@@ -25,6 +25,7 @@ scorecards and grades in an efficient and user-friendly way.
 ### Features
 
 - User Authentication
+- Optional API key protection for private deployments (HMAC-derived keys with blacklist support)
 - Session Validity Checks
 - Retrieval of Scorecard Identifiers
 - Retrieval of Full Scorecards including detailed grades, grade point average and credit point sum
@@ -100,15 +101,86 @@ After running this command, visit the URL `http://127.0.0.1:8000/v1.0/docs` on y
 You should see the automatic interactive API documentation provided by FastAPI, which you can use to test the API 
 endpoints.
 
+## API Key Protection
+
+QISsy can require an API key on all versioned endpoints (`/v1.0/...`). This is
+meant for small private deployments: the operator hands each friend an
+individual key. Without a valid key, QISsy rejects the request **before** any
+request is sent to the QIS server, so the signin endpoint cannot be abused to
+spam the university's QIS.
+
+Keys are stateless: each key is derived from the operator's secret via
+HMAC-SHA256 and validated on the fly. Nothing is stored on the server.
+
+### Setup
+
+1. Generate a secret and put it into `config.json`:
+
+   ```sh
+   python generate_api_key.py --new-secret
+   ```
+
+   ```json
+   "API": {
+     "SECRET_KEY": "<the generated secret>",
+     "KEY_PROTECTION_ENABLED": true,
+     "KEY_BLACKLIST": []
+   }
+   ```
+
+2. Generate a key for each friend and share it with them:
+
+   ```sh
+   python generate_api_key.py alice
+   # qissy_alice_3f9d2c…
+   ```
+
+3. Clients send the key in the `X-API-Key` header on every request.
+
+Apps can check the public `/info` endpoint first: its `api_key_required`
+field tells them whether this instance expects an API key, so they can
+prompt the user for one before signing in.
+
+To verify a key the user entered, apps can call `GET /v1.0/check_api_key`
+with the key in the `X-API-Key` header; it responds with
+`{"is_valid": true/false, "message": "..."}`. To deter brute-forcing valid
+keys, every actual check takes a constant 2 seconds regardless of the
+outcome, at most 10 checks per minute and IP are allowed, and only one
+request per IP is answered at a time — excess requests are rejected
+immediately with `429`. These limits are tracked in memory per server
+process; when running multiple workers or replicas they apply per worker,
+not globally.
+
+Protection is **enabled by default**. To run QISsy without API keys, set
+`KEY_PROTECTION_ENABLED` to `false`. If protection is enabled but no
+`SECRET_KEY` is configured, QISsy fails closed and rejects all requests
+with `503`.
+
+### Revoking access
+
+- **Revoke one key:** add its name to `KEY_BLACKLIST`, e.g. `["alice"]`.
+  The change takes effect immediately (the config is re-read per request);
+  blacklisted keys receive `403`.
+- **Revoke all keys:** replace `SECRET_KEY` with a new secret. All previously
+  issued keys become invalid instantly and receive `401`.
+
+Environment variable fallbacks (used when `config.json` is missing or lacks
+the key): `API_SECRET_KEY`, `API_KEY_PROTECTION_ENABLED`,
+`API_KEY_BLACKLIST` (comma separated, e.g. `alice,bob`).
+
 ## Usage
 
 This API comes with a set of versioned endpoints that serve different functionalities. The current version is `v1.0`.
 
 ### Endpoints summary:
 
-- GET `/info` - Provides information about the running QISsy instance.
+- GET `/info` - Provides information about the running QISsy instance,
+  including `api_key_required`, which tells clients whether the versioned
+  endpoints expect an `X-API-Key` header.
 - GET `/robots.txt` - Disallows all web crawlers.
 
+- GET `/v1.0/check_api_key` - Tells clients whether the presented API key is
+  valid (always public, rate limited, constant 2s response time).
 - POST `/v1.0/signin` - Authenticates the user using provided credentials.
 - GET `/v1.0/check_session` - Checks whether an existing session is valid.
 - GET `/v1.0/scorecard_ids` - Retrieves the identifiers of available scorecards for the user.
@@ -116,6 +188,10 @@ This API comes with a set of versioned endpoints that serve different functional
 
   The response contains the current grade point average, the total credit
   sum and a timeline of how the grade point average evolved over time.
+
+All `/v1.0/...` endpoints require the `X-API-Key` header when API key
+protection is enabled (the default). `/info` and `/robots.txt` are always
+public.
 
 Each endpoint requires specific input parameters and returns respective responses which are documented in detail using 
 Pydantic models and can be viewed on the Swagger/OpenAPI documentation available at `http://127.0.0.1:8000/v1.0/redoc`

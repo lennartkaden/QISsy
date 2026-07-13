@@ -8,7 +8,10 @@ import responses
 
 @pytest.fixture(autouse=True)
 def config_and_client(tmp_path, monkeypatch):
-    cfg = {"QIS": {"BASE_URL": "http://testserver", "SERVICE_PATH": "/service"}}
+    cfg = {
+        "QIS": {"BASE_URL": "http://testserver", "SERVICE_PATH": "/service"},
+        "API": {"KEY_PROTECTION_ENABLED": False},
+    }
     monkeypatch.chdir(tmp_path)
     config_file = tmp_path / 'config.json'
     config_file.write_text(json.dumps(cfg))

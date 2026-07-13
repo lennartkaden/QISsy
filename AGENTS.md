@@ -11,6 +11,24 @@ konsequente Testabdeckung. Die folgenden Richtlinien sollen eingehalten werden:
   einchecken.**
 - Logging erfolgt über das in `logging_config.py` definierte `logger`‑Objekt.
   Verwende `logger` statt `print`.
+- Die versionierten API‑Routen sind über einen API‑Key‑Schutz abgesichert
+  (`security.py`): Keys der Form `qissy_<name>_<signatur>` werden per
+  HMAC‑SHA256 aus `API/SECRET_KEY` abgeleitet und pro Request validiert
+  (Header `X-API-Key`). Einzelne Keys sperrt `API/KEY_BLACKLIST`, alle Keys
+  ein Secret‑Wechsel. Ohne gültigen Key wird abgelehnt, **bevor** eine
+  Anfrage an das QIS geht (fail closed, 503 ohne konfiguriertes Secret).
+  Keys erzeugt `generate_api_key.py`. In Test‑Fixtures den Schutz per
+  `"API": {"KEY_PROTECTION_ENABLED": false}` deaktivieren oder gültige
+  Test‑Keys senden.
+- Öffentliche Auth‑Hilfsrouten liegen in `versions/v1/auth_routes.py` und
+  werden in `main.py` bewusst **ohne** `require_api_key` eingebunden:
+  `GET /v1.0/check_api_key` meldet Clients, ob ein Key gültig ist —
+  Brute‑Force‑gebremst durch konstante Antwortzeit
+  (`CHECK_API_KEY_DELAY_SECONDS`, 2 s), Rate‑Limit pro IP und max. eine
+  gleichzeitige Anfrage pro IP (Limit‑Verstöße sofort 429; die Limits
+  werden in‑memory pro Server‑Prozess geführt). `GET /info` liefert zusätzlich
+  `api_key_required`. Die Schutz‑Zustände lassen sich in Tests über
+  `security.reset_api_key_check_state()` zurücksetzen.
 - Tests befinden sich im Verzeichnis `tests/` und werden mit `pytest` ausgeführt.
 - Neue API‑Routen liegen im entsprechenden Versionsordner unter `versions/`.
 - Die QIS‑Kürzel für Leistungsarten (`ScoreType`) und Status (`ScoreStatus`) sind
