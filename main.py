@@ -8,6 +8,7 @@ from fastapi_versioning import VersionedFastAPI
 __version__ = "v1.0"
 
 from security import is_api_key_protection_enabled, require_api_key
+from versions.v1.auth_routes import router as v1_auth_router
 from versions.v1.user_routes import router as v1_router
 
 
@@ -19,6 +20,9 @@ def create_app() -> FastAPI:
     )
 
     base_app.include_router(v1_router, dependencies=[Depends(require_api_key)])
+    # The auth helper routes validate keys themselves and must stay reachable
+    # without a valid key, so they are wired up WITHOUT require_api_key.
+    base_app.include_router(v1_auth_router)
 
     versioned_app = VersionedFastAPI(
         app=base_app,

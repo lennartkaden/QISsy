@@ -141,6 +141,16 @@ Apps can check the public `/info` endpoint first: its `api_key_required`
 field tells them whether this instance expects an API key, so they can
 prompt the user for one before signing in.
 
+To verify a key the user entered, apps can call `GET /v1.0/check_api_key`
+with the key in the `X-API-Key` header; it responds with
+`{"is_valid": true/false, "message": "..."}`. To deter brute-forcing valid
+keys, every actual check takes a constant 2 seconds regardless of the
+outcome, at most 10 checks per minute and IP are allowed, and only one
+request per IP is answered at a time — excess requests are rejected
+immediately with `429`. These limits are tracked in memory per server
+process; when running multiple workers or replicas they apply per worker,
+not globally.
+
 Protection is **enabled by default**. To run QISsy without API keys, set
 `KEY_PROTECTION_ENABLED` to `false`. If protection is enabled but no
 `SECRET_KEY` is configured, QISsy fails closed and rejects all requests
@@ -169,6 +179,8 @@ This API comes with a set of versioned endpoints that serve different functional
   endpoints expect an `X-API-Key` header.
 - GET `/robots.txt` - Disallows all web crawlers.
 
+- GET `/v1.0/check_api_key` - Tells clients whether the presented API key is
+  valid (always public, rate limited, constant 2s response time).
 - POST `/v1.0/signin` - Authenticates the user using provided credentials.
 - GET `/v1.0/check_session` - Checks whether an existing session is valid.
 - GET `/v1.0/scorecard_ids` - Retrieves the identifiers of available scorecards for the user.

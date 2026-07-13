@@ -25,6 +25,11 @@ class SessionStatus(BaseModel):
     message: str
 
 
+class ApiKeyStatus(BaseModel):
+    is_valid: bool
+    message: str
+
+
 class ScorecardIDs(BaseModel):
     scorecard_ids: Dict[str, str] = Field(
         ...,

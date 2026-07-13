@@ -251,3 +251,123 @@ def test_info_reports_api_key_not_required_when_disabled(tmp_path):
     client = make_client(tmp_path, {"KEY_PROTECTION_ENABLED": False})
     data = client.get("/info").json()
     assert data["api_key_required"] is False
+
+
+# --- /check_api_key endpoint -------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def reset_check_api_key_state():
+    security.reset_api_key_check_state()
+    yield
+    security.reset_api_key_check_state()
+
+
+@pytest.fixture()
+def fast_check(monkeypatch):
+    """Shrink the constant response delay so tests stay fast."""
+    monkeypatch.setattr(security, "CHECK_API_KEY_DELAY_SECONDS", 0.05)
+
+
+def test_check_api_key_valid(tmp_path, fast_check):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", TEST_SECRET)
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is True
+
+
+def test_check_api_key_invalid(tmp_path, fast_check):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", "some-other-secret")
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is False
+
+
+def test_check_api_key_blacklisted(tmp_path, fast_check):
+    client = make_client(
+        tmp_path, {"SECRET_KEY": TEST_SECRET, "KEY_BLACKLIST": ["mallory"]}
+    )
+    key = security.generate_api_key("mallory", TEST_SECRET)
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is False
+
+
+def test_check_api_key_missing_header(tmp_path, fast_check):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    resp = client.get("/v1.0/check_api_key")
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is False
+
+
+def test_check_api_key_missing_secret_fails_closed(tmp_path, fast_check):
+    client = make_client(tmp_path, None)
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": "qissy_a_b"})
+    assert resp.status_code == 503
+
+
+def test_check_api_key_enforces_constant_duration(tmp_path, monkeypatch):
+    monkeypatch.setattr(security, "CHECK_API_KEY_DELAY_SECONDS", 0.3)
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    import time as time_module
+
+    start = time_module.monotonic()
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": "nonsense"})
+    elapsed = time_module.monotonic() - start
+    assert resp.status_code == 200
+    assert elapsed >= 0.3
+
+
+def test_check_api_key_rate_limited(tmp_path, fast_check, monkeypatch):
+    monkeypatch.setattr(security, "CHECK_API_KEY_RATE_LIMIT", 2)
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", TEST_SECRET)
+    assert client.get("/v1.0/check_api_key", headers={"X-API-Key": key}).status_code == 200
+    assert client.get("/v1.0/check_api_key", headers={"X-API-Key": key}).status_code == 200
+    resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": key})
+    assert resp.status_code == 429
+
+
+def test_check_api_key_rejects_concurrent_request_from_same_ip(tmp_path, fast_check):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", TEST_SECRET)
+    # Simulate an in-flight check from the TestClient's IP.
+    assert security.begin_api_key_check("testclient") is True
+    try:
+        resp = client.get("/v1.0/check_api_key", headers={"X-API-Key": key})
+        assert resp.status_code == 429
+    finally:
+        security.end_api_key_check("testclient")
+
+
+def test_check_api_key_constant_duration_across_outcomes(tmp_path, monkeypatch):
+    monkeypatch.setattr(security, "CHECK_API_KEY_DELAY_SECONDS", 0.2)
+    client = make_client(
+        tmp_path, {"SECRET_KEY": TEST_SECRET, "KEY_BLACKLIST": ["mallory"]}
+    )
+    import time as time_module
+
+    outcomes = [
+        {"X-API-Key": security.generate_api_key("alice", TEST_SECRET)},   # valid
+        {"X-API-Key": "qissy_alice_deadbeef"},                            # invalid
+        {"X-API-Key": security.generate_api_key("mallory", TEST_SECRET)},  # blacklisted
+        {},                                                                # missing
+    ]
+    for headers in outcomes:
+        security.reset_api_key_check_state()
+        start = time_module.monotonic()
+        resp = client.get("/v1.0/check_api_key", headers=headers)
+        elapsed = time_module.monotonic() - start
+        assert resp.status_code == 200
+        # Every checkable outcome is padded to the same constant duration.
+        assert 0.2 <= elapsed < 0.7
+
+
+def test_check_api_key_latest_alias_available(tmp_path, fast_check):
+    client = make_client(tmp_path, {"SECRET_KEY": TEST_SECRET})
+    key = security.generate_api_key("alice", TEST_SECRET)
+    resp = client.get("/latest/check_api_key", headers={"X-API-Key": key})
+    assert resp.status_code == 200
+    assert resp.json()["is_valid"] is True

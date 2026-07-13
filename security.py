@@ -10,7 +10,8 @@ without storage, individual keys can be revoked via the configured blacklist
 import hashlib
 import hmac
 import re
-from typing import List, Optional, Tuple
+import time
+from typing import Dict, List, Optional, Set, Tuple
 
 from fastapi import HTTPException
 from fastapi.security import APIKeyHeader
@@ -154,7 +155,7 @@ def get_api_key_blacklist() -> List[str]:
     return [str(name).strip().lower() for name in names if str(name).strip()]
 
 
-_api_key_header = APIKeyHeader(
+api_key_header = APIKeyHeader(
     name="X-API-Key",
     auto_error=False,
     scheme_name="APIKeyHeader",
@@ -164,7 +165,7 @@ _api_key_header = APIKeyHeader(
 
 
 async def require_api_key(
-    api_key: Optional[str] = Security(_api_key_header),
+    api_key: Optional[str] = Security(api_key_header),
 ) -> Optional[str]:
     """
     FastAPI dependency that enforces API key protection.
@@ -205,3 +206,64 @@ async def require_api_key(
         raise HTTPException(status_code=403, detail="API key has been revoked")
 
     return name
+
+
+# --- brute-force protection for the /check_api_key endpoint -----------------
+
+CHECK_API_KEY_DELAY_SECONDS = 2.0
+CHECK_API_KEY_RATE_LIMIT = 10
+CHECK_API_KEY_RATE_WINDOW_SECONDS = 60.0
+
+# Bounded, in-memory per-IP tracking. Not shared between worker processes,
+# which is fine for the small private deployments this feature targets.
+_MAX_TRACKED_IPS = 1024
+_checks_in_flight: Set[str] = set()
+_check_history: Dict[str, List[float]] = {}
+
+
+def begin_api_key_check(client_ip: str) -> bool:
+    """
+    Mark an API key check as in flight for ``client_ip``.
+
+    Returns: ``True`` if no other check is currently running for this IP,
+             ``False`` otherwise (the caller must reject the request).
+    """
+    if client_ip in _checks_in_flight:
+        return False
+    _checks_in_flight.add(client_ip)
+    return True
+
+
+def end_api_key_check(client_ip: str) -> None:
+    """Release the in-flight marker set by :func:`begin_api_key_check`."""
+    _checks_in_flight.discard(client_ip)
+
+
+def register_api_key_check(client_ip: str) -> bool:
+    """
+    Record an API key check attempt for rate limiting.
+
+    Returns: ``True`` if ``client_ip`` is still within
+             ``CHECK_API_KEY_RATE_LIMIT`` attempts per
+             ``CHECK_API_KEY_RATE_WINDOW_SECONDS``, ``False`` otherwise.
+    """
+    now = time.monotonic()
+    cutoff = now - CHECK_API_KEY_RATE_WINDOW_SECONDS
+    if len(_check_history) > _MAX_TRACKED_IPS:
+        stale = [ip for ip, stamps in _check_history.items()
+                 if not stamps or stamps[-1] <= cutoff]
+        for ip in stale:
+            del _check_history[ip]
+    history = [stamp for stamp in _check_history.get(client_ip, []) if stamp > cutoff]
+    if len(history) >= CHECK_API_KEY_RATE_LIMIT:
+        _check_history[client_ip] = history
+        return False
+    history.append(now)
+    _check_history[client_ip] = history
+    return True
+
+
+def reset_api_key_check_state() -> None:
+    """Clear all in-flight and rate-limit tracking (used by tests)."""
+    _checks_in_flight.clear()
+    _check_history.clear()
